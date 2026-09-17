@@ -1,0 +1,16 @@
+{
+  "name": "Kipointe — Pointage",
+  "short_name": "Kipointe",
+  "description": "Pointage du temps de travail par badge QR + PIN",
+  "start_url": "/kiosque",
+  "scope": "/",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#0b1f3a",
+  "theme_color": "#0b1f3a",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

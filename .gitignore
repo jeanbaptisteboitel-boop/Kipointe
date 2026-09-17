@@ -1,0 +1,26 @@
+# dépendances
+node_modules/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# environnement
+.env
+.env.*
+!.env.example
+
+# tests / divers
+coverage/
+*.tsbuildinfo
+.DS_Store
+
+# android (wrapper kiosque)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.apk
+*.aab

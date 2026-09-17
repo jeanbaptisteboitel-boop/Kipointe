@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+:root {
+  --navy: #0b1f3a;
+  --cyan: #22d3ee;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ─── Composants gérant ─── */
+@utility btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+}
+.btn-primary {
+  @apply btn bg-[var(--navy)] text-white hover:bg-slate-800;
+}
+.btn-secondary {
+  @apply btn border-slate-300 bg-white text-slate-800 hover:bg-slate-100;
+}
+.btn-danger {
+  @apply btn border-red-200 bg-red-50 text-red-700 hover:bg-red-100;
+}
+.btn-sm {
+  @apply px-2 py-1 text-xs;
+}
+.input {
+  @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--navy)] focus:ring-2 focus:ring-cyan-200 focus:outline-none;
+}
+.label {
+  @apply mb-1 block text-xs font-semibold tracking-wide text-slate-600 uppercase;
+}
+.card {
+  @apply rounded-lg border border-slate-200 bg-white p-4 shadow-sm;
+}
+.badge {
+  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+}
+.table {
+  @apply w-full border-collapse text-sm;
+}
+.table th {
+  @apply border-b border-slate-200 bg-slate-100 px-2 py-2 text-left text-xs font-semibold tracking-wide text-slate-600 uppercase;
+}
+.table td {
+  @apply border-b border-slate-100 px-2 py-2 align-top;
+}
+
+/* ─── Kiosque (tablette murale, portrait) ─── */
+.kiosque {
+  @apply flex min-h-screen flex-col bg-[var(--navy)] text-white select-none;
+  touch-action: manipulation;
+}
+.kiosque-heure {
+  font-size: clamp(3.5rem, 14vw, 7rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.pin-touche {
+  @apply flex aspect-square items-center justify-center rounded-2xl bg-white/10 text-5xl font-semibold active:bg-cyan-400 active:text-[var(--navy)];
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}
