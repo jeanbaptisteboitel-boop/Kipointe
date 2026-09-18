@@ -1,59 +1,86 @@
 import Link from "next/link";
+import { IconeBouclier, IconeDocument, IconePersonne, IconeSceau } from "@/components/icones";
 import { exigerGerant } from "@/lib/auth/session";
 
 export const metadata = { title: "Conformité" };
 
+function Carte({
+  icone,
+  titre,
+  texte,
+  action,
+}: {
+  icone: React.ReactNode;
+  titre: string;
+  texte: string;
+  action: React.ReactNode;
+}) {
+  return (
+    <div className="card flex flex-col gap-3">
+      <span className="grid h-[38px] w-[38px] place-items-center rounded-[10px]" style={{ background: "var(--info-bg)", color: "var(--info-ink)" }}>
+        {icone}
+      </span>
+      <div className="titre-sm">{titre}</div>
+      <p className="flex-1 text-[13px]" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+        {texte}
+      </p>
+      {action}
+    </div>
+  );
+}
+
 export default async function PageConformite() {
   await exigerGerant();
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Conformité (RGPD et droit du travail)</h1>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="card space-y-2">
-          <h2 className="font-semibold">1. Information préalable des salariés</h2>
-          <p className="text-sm text-slate-600">
-            Avant la mise en service, remettez à chaque salarié la note d'information (et consultez le CSE s'il existe). Elle précise notamment que la caméra de la tablette ne
-            filme ni n'enregistre rien : le QR est décodé localement, aucune image n'est stockée ni transmise.
-          </p>
-          <div className="flex gap-2">
-            <Link href="/gerant/conformite/note-information" className="btn-primary btn-sm">
-              Ouvrir la note (imprimable)
+    <div className="flex flex-col gap-[18px]">
+      <div>
+        <h1 className="titre text-[28px]">Conformité</h1>
+        <p className="mt-2 max-w-[74ch] text-sm" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+          Les quatre pièces à tenir à jour. Kipointe les produit ; l'affichage et l'information des salariés restent de la responsabilité de l'employeur.
+        </p>
+      </div>
+
+      <div className="grid gap-[18px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
+        <Carte
+          icone={<IconeDocument size={20} />}
+          titre="Note d'information aux salariés"
+          texte="Finalité du dispositif, données traitées, durée de conservation, droits. Elle précise noir sur blanc que la caméra ne filme pas. À afficher près de la tablette et à remettre à l'embauche."
+          action={
+            <Link href="/gerant/conformite/note-information" className="btn-secondary btn-sm w-max">
+              Ouvrir la note imprimable
             </Link>
-            <a href="/documents/note-information-salaries.md" download className="btn-secondary btn-sm">
-              Télécharger (Markdown)
-            </a>
-          </div>
-        </div>
-        <div className="card space-y-2">
-          <h2 className="font-semibold">2. Registre des traitements</h2>
-          <dl className="text-sm text-slate-700">
-            <dt className="font-medium">Traitement</dt>
-            <dd>Gestion du temps de travail (pointage)</dd>
-            <dt className="mt-1 font-medium">Base légale</dt>
-            <dd>Obligation légale de l'employeur (art. L.3171-2 et D.3171-8 du Code du travail)</dd>
-            <dt className="mt-1 font-medium">Données</dt>
-            <dd>Identité, matricule, horodatages d'entrée/sortie, corrections motivées. Pas de biométrie, pas de géolocalisation, pas d'image.</dd>
-            <dt className="mt-1 font-medium">Durée de conservation</dt>
-            <dd>5 ans (purge automatique quotidienne), récaps archivés 5 ans en mode gouvernance</dd>
-            <dt className="mt-1 font-medium">Hébergement</dt>
-            <dd>Union européenne exclusivement : Vercel Paris (cdg1), Neon EU, Scaleway Paris (fr-par)</dd>
-            <dt className="mt-1 font-medium">Destinataires</dt>
-            <dd>Gérant, service paie / expert-comptable</dd>
-          </dl>
-        </div>
-        <div className="card space-y-2">
-          <h2 className="font-semibold">3. Droits des personnes</h2>
-          <p className="text-sm text-slate-600">
-            Chaque salarié disposant d'un compte peut consulter et exporter ses propres pointages (espace salarié). Tout accès du gérant aux données d'un salarié est journalisé (menu Journal).
-          </p>
-        </div>
-        <div className="card space-y-2">
-          <h2 className="font-semibold">4. Valeur probante des récaps</h2>
-          <p className="text-sm text-slate-600">
-            Un récap hebdomadaire validé est figé : PDF archivé sur un stockage à verrouillage d'objet (Object Lock, mode gouvernance) et empreinte SHA-256 conservée en base. Les pointages
-            d'origine ne sont jamais modifiés : les corrections sont additives et motivées.
-          </p>
-        </div>
+          }
+        />
+        <Carte
+          icone={<IconeBouclier size={20} />}
+          titre="Registre RGPD"
+          texte="Traitement « gestion du temps de travail » : base légale l'obligation légale de l'employeur, conservation 5 ans, hébergement exclusivement dans l'Union européenne."
+          action={
+            <Link href="/gerant/conformite/registre" className="btn-secondary btn-sm w-max">
+              Voir la fiche de traitement
+            </Link>
+          }
+        />
+        <Carte
+          icone={<IconePersonne size={20} />}
+          titre="Droits des personnes"
+          texte="Chaque salarié consulte ses propres pointages et les exporte en CSV depuis son espace. Tout accès du gérant à ses données est journalisé."
+          action={
+            <Link href="/gerant/salaries" className="btn-secondary btn-sm w-max">
+              Traiter une demande
+            </Link>
+          }
+        />
+        <Carte
+          icone={<IconeSceau size={20} />}
+          titre="Valeur probante"
+          texte="Récapitulatifs hebdomadaires archivés et scellés par empreinte SHA-256, corrections additives tracées avec auteur et motif, pointages d'origine jamais modifiés."
+          action={
+            <Link href="/gerant/journal" className="btn-secondary btn-sm w-max">
+              Voir le journal
+            </Link>
+          }
+        />
       </div>
     </div>
   );

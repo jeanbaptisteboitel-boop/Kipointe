@@ -25,6 +25,11 @@ const MAX_ECHECS_LOCAUX = 5;
 const VERROU_LOCAL_MS = 15 * 60_000;
 const AMPLITUDE_MAX_MS = 13 * 3600_000;
 
+/** « Camille Martin · SAL-001 ». */
+function nomComplet(s: { prenom: string; nom: string; matricule?: string | null }): string {
+  return [`${s.prenom} ${s.nom}`.trim(), s.matricule].filter(Boolean).join(" · ");
+}
+
 type EchecsLocaux = { n: number; jusqua: number | null };
 
 export class ServiceKiosque {
@@ -99,6 +104,9 @@ export class ServiceKiosque {
       const serveur = Date.parse(corps.horloge_serveur);
       this.offsetMs = Math.round(serveur - (t0 + (t1 - t0) / 2));
       await ecrireMeta("offset_ms", this.offsetMs);
+      // Le heartbeat vaut contact avec le serveur : c'est ce que « dernière synchronisation » désigne.
+      this.derniereSynchro = new Date().toISOString();
+      await ecrireMeta("derniere_synchro", this.derniereSynchro);
       await this.rafraichirSalaries();
       this.publier();
     } catch {
@@ -124,11 +132,11 @@ export class ServiceKiosque {
     this.cacheSalariesRempli = corps.salaries.length > 0;
   }
 
-  async resoudreBadge(badgeUuid: string): Promise<{ prenom: string | null; inconnu: boolean }> {
+  async resoudreBadge(badgeUuid: string): Promise<{ prenom: string | null; nomComplet: string | null; inconnu: boolean }> {
     const s = await idb.lire<SalarieCache>("salaries", badgeUuid);
-    if (s) return { prenom: s.prenom, inconnu: false };
-    // Cache rempli et badge absent : inconnu (ou régénéré depuis la dernière synchro).
-    return { prenom: null, inconnu: this.cacheSalariesRempli && !estEnLigne() };
+    if (s) return { prenom: s.prenom, nomComplet: nomComplet(s), inconnu: false };
+    // Cache rempli et badge absent : inconnu (ou régénéré depuis la dernière synchronisation).
+    return { prenom: null, nomComplet: null, inconnu: this.cacheSalariesRempli && !estEnLigne() };
   }
 
   private async memoriserDernier(badgeUuid: string, type: TypePointage, horodatage: Date) {
@@ -162,7 +170,15 @@ export class ServiceKiosque {
         if (corps.statut === "OK" || corps.statut === "REJOUE") {
           await this.surSucces(corps);
           await this.resetEchecsLocaux(badgeUuid);
-          return { ok: true, type: corps.pointage.type, horodatage: new Date(corps.pointage.horodatage), totalJourMinutes: corps.total_jour_minutes, horsLigne: false, prenom: corps.salarie.prenom };
+          return {
+            ok: true,
+            type: corps.pointage.type,
+            horodatage: new Date(corps.pointage.horodatage),
+            totalJourMinutes: corps.total_jour_minutes,
+            horsLigne: false,
+            prenom: corps.salarie.prenom,
+            nomComplet: nomComplet(corps.salarie),
+          };
         }
         if (corps.statut === "ERREUR") {
           return { ok: false, code: corps.erreur.code, message: corps.erreur.message, detail: corps.erreur.detail, conserverBadge: corps.erreur.code === "PIN_INCORRECT" };
@@ -200,14 +216,28 @@ export class ServiceKiosque {
     await this.memoriserDernier(badgeUuid, item.type_estime, horodatageReel);
     this.enAttente = await idb.compter("file");
     this.publier();
-    return { ok: true, type: item.type_estime, horodatage: horodatageReel, totalJourMinutes: null, horsLigne: true, prenom: prenom ?? s?.prenom ?? null };
+    return {
+      ok: true,
+      type: item.type_estime,
+      horodatage: horodatageReel,
+      totalJourMinutes: null,
+      horsLigne: true,
+      prenom: prenom ?? s?.prenom ?? null,
+      nomComplet: s ? nomComplet(s) : null,
+    };
   }
 
   private async surSucces(corps: Extract<Awaited<ReturnType<typeof api.pointer>>["corps"], { statut: "OK" | "REJOUE" }>) {
     if (corps.verificateur_hors_ligne) {
       await idb.mettre<VerificateurCache>("verificateurs", { badge_uuid: corps.salarie.badge_uuid, pin_version: corps.salarie.pin_version, verificateur: corps.verificateur_hors_ligne });
     }
-    await idb.mettre<SalarieCache>("salaries", { badge_uuid: corps.salarie.badge_uuid, prenom: corps.salarie.prenom, pin_version: corps.salarie.pin_version });
+    await idb.mettre<SalarieCache>("salaries", {
+      badge_uuid: corps.salarie.badge_uuid,
+      prenom: corps.salarie.prenom,
+      nom: corps.salarie.nom,
+      matricule: corps.salarie.matricule,
+      pin_version: corps.salarie.pin_version,
+    });
     this.cacheSalariesRempli = true;
     await this.memoriserDernier(corps.salarie.badge_uuid, corps.pointage.type, new Date(corps.pointage.horodatage));
   }

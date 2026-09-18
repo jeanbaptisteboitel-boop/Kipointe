@@ -7,7 +7,14 @@ export function corpsResultat(res: ResultatPointage, maintenant: Date) {
     return {
       statut: res.statut,
       pointage: res.pointage,
-      salarie: { id: res.salarie.id, prenom: res.salarie.prenom, badge_uuid: res.salarie.badgeUuid, pin_version: res.salarie.pinVersion },
+      salarie: {
+        id: res.salarie.id,
+        prenom: res.salarie.prenom,
+        nom: res.salarie.nom,
+        matricule: res.salarie.matricule,
+        badge_uuid: res.salarie.badgeUuid,
+        pin_version: res.salarie.pinVersion,
+      },
       total_jour_minutes: res.totalJourMinutes,
       verificateur_hors_ligne: res.verificateurHorsLigne,
       derive_horloge_ms: res.deriveHorlogeMs,

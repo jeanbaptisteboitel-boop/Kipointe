@@ -9,11 +9,11 @@ export const runtime = "nodejs";
 export const GET = route(async (req) => {
   return avecTerminal(req, async (tx, ctx) => {
     const rows = await tx
-      .select({ badgeUuid: salarie.badgeUuid, prenom: salarie.prenom, pinVersion: salarie.pinVersion })
+      .select({ badgeUuid: salarie.badgeUuid, prenom: salarie.prenom, nom: salarie.nom, matricule: salarie.matricule, pinVersion: salarie.pinVersion })
       .from(salarie)
       .where(and(eq(salarie.organisationId, ctx.organisation.id), eq(salarie.actif, true)));
     return json({
-      salaries: rows.map((r) => ({ badge_uuid: r.badgeUuid, prenom: r.prenom, pin_version: r.pinVersion })),
+      salaries: rows.map((r) => ({ badge_uuid: r.badgeUuid, prenom: r.prenom, nom: r.nom, matricule: r.matricule, pin_version: r.pinVersion })),
       horloge_serveur: new Date().toISOString(),
     });
   });

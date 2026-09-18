@@ -9,6 +9,27 @@ récapitulatif hebdomadaire (article D.3171-8 du Code du travail) en PDF à vale
 Storage `fr-par` (Object Lock) · Vercel `cdg1` (Paris) · sessions cookies `httpOnly` maison · PWA kiosque
 hors ligne (Service Worker + IndexedDB) · wrapper Android Kotlin (Lock Task + ML Kit).
 
+## Identité visuelle
+
+Deux registres cohabitent, conformément au design system OMNIUP :
+
+| Registre | Où | Couleurs | Typographie |
+|---|---|---|---|
+| **Bureau** | gérant, salarié, connexion | navy `#0E2E6B`, cyan `#1FA9F0`, fond `#F5F7FA` | Manrope pour les titres, police système pour le corps |
+| **Kiosque** | tablette murale | fond `#0B1F3A`, accent `#22D3EE`, verts et rouges éclaircis | Manrope, plancher à 22 px, heure à 172 px |
+
+Les tokens sont déclarés une fois dans `src/app/globals.css`. Règles tenues partout : contraste minimum
+4,5:1 sur le texte courant, cibles tactiles de 110 px au kiosque et 44 px au bureau, focus clavier cyan de
+3 px jamais supprimé, aucune information portée par la couleur seule (chaque statut porte une icône et un
+mot), chiffres tabulaires sur toutes les heures et durées.
+
+Les icônes sont dessinées à la main dans `src/components/icones.tsx` — aucune bibliothèque tierce. La marque
+est un bouton d'alimentation (`src/components/Logomark.tsx`).
+
+**Le kiosque n'affiche jamais d'aperçu vidéo** : le cadre de lecture est un pictogramme. Le flux caméra est
+analysé en mémoire pour y chercher un QR code, puis jeté — c'est ce que la note d'information promet aux
+salariés.
+
 ## Démarrage rapide
 
 ```bash

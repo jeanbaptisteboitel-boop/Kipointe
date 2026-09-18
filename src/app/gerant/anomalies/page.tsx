@@ -1,25 +1,32 @@
 import Link from "next/link";
+import { Chip, libelleAnomalie, PastilleAnomalie } from "@/components/ui";
 import { exigerGerant } from "@/lib/auth/session";
-import { formatDateFr, formatSemaine, semaineIsoDe } from "@/lib/temps/journee";
+import { formatDateFr, formatSemaine, nomJour, semaineIsoDe } from "@/lib/temps/journee";
 import { listerAnomalies } from "@/lib/ui/data";
-import { LIBELLES_ANOMALIE } from "@/lib/ui/libelles";
 import { StatutAnomalie } from "./StatutAnomalie";
 
 export const metadata = { title: "Anomalies" };
 
-function resumeDetail(type: string, detail: Record<string, unknown>): string {
+/** Le détail d'une anomalie en une phrase courte, jamais du JSON brut. */
+function resume(type: string, detail: Record<string, unknown>): string {
   const d = detail as Record<string, number | string | undefined>;
+  const h = (min: unknown) => {
+    const n = Number(min);
+    return Number.isFinite(n) ? `${Math.floor(n / 60)} h ${String(Math.round(n % 60)).padStart(2, "0")}` : "";
+  };
   switch (type) {
     case "REPOS_11H":
-      return `repos de ${Math.floor(Number(d.reposMinutes) / 60)} h ${String(Number(d.reposMinutes) % 60).padStart(2, "0")}`;
+      return `repos de ${h(d.reposMinutes)} entre deux journées`;
     case "REPOS_HEBDO":
-      return `repos maximal ${Math.floor(Number(d.reposMaxMinutes) / 60)} h`;
+      return `repos maximal de ${h(d.reposMaxMinutes)} dans la semaine`;
     case "PAUSE_MANQUANTE":
-      return `${Math.floor(Number(d.travailContinuMinutes) / 60)} h ${String(Number(d.travailContinuMinutes) % 60).padStart(2, "0")} de travail continu`;
+      return `${h(d.travailContinuMinutes)} de travail continu sans pause`;
     case "AMPLITUDE":
-      return `amplitude ${Math.floor(Number(d.amplitudeMinutes) / 60)} h ${String(Number(d.amplitudeMinutes) % 60).padStart(2, "0")}`;
+      return `amplitude de ${h(d.amplitudeMinutes)}`;
     case "HORS_PLAGE":
-      return d.motif === "double_entree" ? "double entrée" : "sortie sans entrée";
+      return d.motif === "double_entree" ? "deux entrées consécutives" : "sortie sans entrée";
+    case "OUBLI_SORTIE":
+      return "aucune sortie enregistrée";
     default: {
       const ev = detail.evenements as unknown[] | undefined;
       return ev ? `${ev.length} événement${ev.length > 1 ? "s" : ""}` : "";
@@ -27,44 +34,47 @@ function resumeDetail(type: string, detail: Record<string, unknown>): string {
   }
 }
 
+const FILTRES: [string, string][] = [
+  ["OUVERTE", "Ouvertes"],
+  ["TRAITEE", "Traitées"],
+  ["IGNOREE", "Ignorées"],
+  ["TOUTES", "Toutes"],
+];
+
 export default async function PageAnomalies({ searchParams }: { searchParams: Promise<{ statut?: string }> }) {
   const u = await exigerGerant();
   const { statut } = await searchParams;
   const filtre = statut === "TRAITEE" || statut === "IGNOREE" ? statut : statut === "TOUTES" ? null : "OUVERTE";
   const anomalies = await listerAnomalies(u, filtre);
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Anomalies</h1>
-        <div className="flex gap-2 text-sm">
-          {[
-            ["OUVERTE", "Ouvertes"],
-            ["TRAITEE", "Traitées"],
-            ["IGNOREE", "Ignorées"],
-            ["TOUTES", "Toutes"],
-          ].map(([v, l]) => (
-            <Link key={v} href={`/gerant/anomalies?statut=${v}`} className={`rounded-md px-3 py-1 ${(filtre ?? "TOUTES") === v ? "bg-[var(--navy)] text-white" : "bg-white text-slate-700 hover:bg-slate-100"}`}>
-              {l}
-            </Link>
-          ))}
-        </div>
+    <div className="flex flex-col gap-[18px]">
+      <h1 className="titre text-[28px]">Anomalies</h1>
+
+      <div className="flex flex-wrap gap-2.5">
+        {FILTRES.map(([v, l]) => (
+          <Chip key={v} href={`/gerant/anomalies?statut=${v}`} actif={(filtre ?? "TOUTES") === v}>
+            {l}
+          </Chip>
+        ))}
       </div>
-      <div className="card overflow-x-auto p-0">
-        <table className="table">
+
+      <div className="card-plat overflow-x-auto">
+        <table className="tbl" style={{ minWidth: 940 }}>
           <thead>
             <tr>
-              <th>Jour</th>
-              <th>Salarié</th>
-              <th>Type</th>
+              <th style={{ width: 100 }}>Jour</th>
+              <th style={{ width: 156 }}>Salarié</th>
+              <th style={{ width: 196 }}>Type</th>
               <th>Détail</th>
-              <th>Statut</th>
-              <th></th>
+              <th style={{ width: 110 }}>Statut</th>
+              <th style={{ width: 200 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {anomalies.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-slate-500">
+                <td colSpan={6} className="py-10 text-center" style={{ color: "var(--muted)" }}>
                   Aucune anomalie.
                 </td>
               </tr>
@@ -73,18 +83,22 @@ export default async function PageAnomalies({ searchParams }: { searchParams: Pr
               const sem = semaineIsoDe(a.dateJour);
               return (
                 <tr key={a.id}>
-                  <td className="whitespace-nowrap">{formatDateFr(a.dateJour)}</td>
+                  <td className="tabnum text-[13px] font-semibold whitespace-nowrap">
+                    {nomJour(a.dateJour, true)} {formatDateFr(a.dateJour)}
+                  </td>
                   <td>
-                    <Link href={`/gerant/salaries/${a.salarieId}?semaine=${formatSemaine(sem.annee, sem.semaine)}`} className="underline">
+                    <Link href={`/gerant/salaries/${a.salarieId}?semaine=${formatSemaine(sem.annee, sem.semaine)}`} className="font-semibold" style={{ color: "var(--navy)" }}>
                       {a.salarie.nom} {a.salarie.prenom}
                     </Link>
                   </td>
-                  <td className="font-medium">{LIBELLES_ANOMALIE[a.type]}</td>
-                  <td className="text-xs text-slate-600">{resumeDetail(a.type, a.detail)}</td>
-                  <td>
-                    <span className={`badge ${a.statut === "OUVERTE" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{a.statut.toLowerCase()}</span>
+                  <td>{libelleAnomalie(a.type)}</td>
+                  <td className="tabnum text-[13px]" style={{ color: "var(--muted)" }}>
+                    {resume(a.type, a.detail)}
                   </td>
-                  <td className="text-right">
+                  <td>
+                    <PastilleAnomalie statut={a.statut} />
+                  </td>
+                  <td>
                     <StatutAnomalie id={a.id} statut={a.statut} />
                   </td>
                 </tr>
@@ -93,6 +107,11 @@ export default async function PageAnomalies({ searchParams }: { searchParams: Pr
           </tbody>
         </table>
       </div>
+
+      <p className="max-w-[80ch] text-[13px]" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+        Une anomalie ignorée reste visible dans le filtre «&nbsp;Ignorées&nbsp;» et sur le récapitulatif hebdomadaire. Elle peut être rouverte à tout moment. Les seuils se règlent
+        dans Paramètres.
+      </p>
     </div>
   );
 }

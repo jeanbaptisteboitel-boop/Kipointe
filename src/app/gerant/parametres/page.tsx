@@ -9,8 +9,13 @@ export default async function PageParametres() {
   const u = await exigerGerant();
   const { org, etablissements } = await chargerOrganisation(u);
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Paramètres de l'organisation</h1>
+    <div className="flex flex-col gap-[18px]">
+      <div>
+        <h1 className="titre text-[28px]">Paramètres</h1>
+        <p className="mt-2 max-w-[74ch] text-sm" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+          Les règles de calcul varient selon la convention collective. Elles sont paramétrées ici, jamais codées en dur.
+        </p>
+      </div>
       <FormulaireParametres
         organisation={{
           raison_sociale: org.raisonSociale,

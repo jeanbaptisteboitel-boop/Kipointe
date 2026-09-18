@@ -8,12 +8,16 @@ export default async function PageTerminaux() {
   const u = await exigerGerant();
   const { terminaux, etablissements } = await listerTerminaux(u);
   const maintenant = Date.now();
+
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Terminaux (tablettes murales)</h1>
-      <p className="text-sm text-slate-600">
-        Créez un terminal par tablette, générez un code d'appairage (valable 15 minutes) et saisissez-le sur la tablette. Un terminal silencieux depuis plus de 15 minutes est signalé.
-      </p>
+    <div className="flex flex-col gap-[18px]">
+      <div>
+        <h1 className="titre text-[28px]">Terminaux</h1>
+        <p className="mt-2 max-w-[74ch] text-sm" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+          Un terminal par tablette murale. Générez un code d'appairage, valable 15 minutes, et saisissez-le sur la tablette. Un terminal est «&nbsp;silencieux&nbsp;» s'il n'a pas
+          synchronisé depuis plus de 15 minutes : vérifiez le réseau avant de le révoquer.
+        </p>
+      </div>
       <Terminaux
         etablissements={etablissements.map((e) => ({ id: e.id, libelle: e.libelle }))}
         terminaux={terminaux.map((t) => ({

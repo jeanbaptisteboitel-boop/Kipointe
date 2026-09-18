@@ -116,6 +116,12 @@ export function formatDateFr(dateJour: string): string {
   return `${j}/${m}/${a}`;
 }
 
+/** « 14/09 » : forme compacte pour les tableaux hebdomadaires, où l'année est déjà connue. */
+export function formatDateCourte(dateJour: string): string {
+  const [, m, j] = dateJour.split("-");
+  return `${j}/${m}`;
+}
+
 const JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 const JOURS_COURTS = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
 

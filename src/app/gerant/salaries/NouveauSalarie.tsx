@@ -2,22 +2,23 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { IconeCheck } from "@/components/icones";
 import { appelApi, ErreurApi } from "@/lib/ui/client";
 
 export function NouveauSalarie({ etablissements }: { etablissements: { id: string; libelle: string }[] }) {
   const router = useRouter();
-  const [ouvert, setOuvert] = useState(false);
-  const [resultat, setResultat] = useState<{ nom: string; pin: string; badge: string; id: string } | null>(null);
+  const [resultat, setResultat] = useState<{ nom: string; pin: string; id: string } | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, setEnCours] = useState(false);
 
   async function soumettre(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
     setErreur(null);
     setEnCours(true);
     try {
-      const r = await appelApi<{ salarie: { id: string; nom: string; prenom: string; badge_contenu: string }; pin_initial: string }>("/api/admin/salaries", {
+      const r = await appelApi<{ salarie: { id: string; nom: string; prenom: string }; pin_initial: string }>("/api/admin/salaries", {
         method: "POST",
         json: {
           nom: fd.get("nom"),
@@ -29,8 +30,8 @@ export function NouveauSalarie({ etablissements }: { etablissements: { id: strin
           date_entree: fd.get("date_entree") || null,
         },
       });
-      setResultat({ nom: `${r.salarie.prenom} ${r.salarie.nom}`, pin: r.pin_initial, badge: r.salarie.badge_contenu, id: r.salarie.id });
-      setOuvert(false);
+      setResultat({ nom: `${r.salarie.prenom} ${r.salarie.nom}`, pin: r.pin_initial, id: r.salarie.id });
+      form.reset();
       router.refresh();
     } catch (err) {
       setErreur(err instanceof ErreurApi ? err.message : "Création impossible.");
@@ -40,43 +41,62 @@ export function NouveauSalarie({ etablissements }: { etablissements: { id: strin
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex basis-[330px] flex-col gap-4" style={{ flexGrow: 0, flexShrink: 1, minWidth: 290 }}>
       {resultat && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm">
-          <p className="font-semibold text-emerald-900">
-            {resultat.nom} créé. PIN initial : <span className="font-mono text-lg">{resultat.pin}</span>
-          </p>
-          <p className="mt-1 text-emerald-900">Notez ce PIN maintenant, il ne sera plus affiché. Remettez-le au salarié en main propre avec son badge.</p>
-          <a href={`/gerant/salaries/${resultat.id}/badge`} className="btn-primary btn-sm mt-2">
-            Imprimer le badge
-          </a>
+        <div className="encart-ok flex items-start gap-3.5">
+          <IconeCheck size={21} className="mt-0.5" />
+          <div>
+            <div className="text-[15px] font-bold">
+              {resultat.nom} a été créé. PIN initial : <span className="mono tabnum text-[19px] tracking-[0.08em]">{resultat.pin}</span>
+            </div>
+            <div className="mt-1.5 text-sm" style={{ lineHeight: 1.5 }}>
+              Notez-le maintenant, il ne sera plus affiché. Remettez-le en main propre avec le badge.
+            </div>
+            <a href={`/gerant/salaries/${resultat.id}/badge`} className="btn-secondary btn-sm mt-3">
+              Imprimer le badge
+            </a>
+          </div>
         </div>
       )}
-      {!ouvert ? (
-        <button type="button" className="btn-primary" onClick={() => setOuvert(true)}>
-          + Nouveau salarié
-        </button>
-      ) : (
-        <form onSubmit={soumettre} className="card grid gap-3 sm:grid-cols-3">
+
+      <form onSubmit={soumettre} className="card">
+        <div className="titre-sm">Nouveau salarié</div>
+        <div className="mt-[18px] flex flex-col gap-3.5">
           <div>
-            <label className="label">Nom</label>
-            <input name="nom" className="input" required />
+            <label className="label" htmlFor="ns-prenom">
+              Prénom
+            </label>
+            <input id="ns-prenom" name="prenom" className="input" placeholder="Inès" required />
           </div>
           <div>
-            <label className="label">Prénom</label>
-            <input name="prenom" className="input" required />
+            <label className="label" htmlFor="ns-nom">
+              Nom
+            </label>
+            <input id="ns-nom" name="nom" className="input" placeholder="Fabre" required />
           </div>
           <div>
-            <label className="label">Matricule</label>
-            <input name="matricule" className="input" />
+            <label className="label" htmlFor="ns-mat">
+              Matricule
+            </label>
+            <input id="ns-mat" name="matricule" className="input mono" placeholder="SAL-005" />
           </div>
           <div>
-            <label className="label">Email (accès salarié, optionnel)</label>
-            <input name="email" type="email" className="input" />
+            <label className="label" htmlFor="ns-email">
+              Adresse e-mail (accès salarié, facultatif)
+            </label>
+            <input id="ns-email" name="email" type="email" className="input" />
           </div>
           <div>
-            <label className="label">Établissement</label>
-            <select name="etablissement_id" className="input" defaultValue={etablissements[0]?.id ?? ""}>
+            <label className="label" htmlFor="ns-h">
+              Durée contractuelle hebdomadaire
+            </label>
+            <input id="ns-h" name="contrat_heures_hebdo" type="number" step="0.5" min="0" max="60" defaultValue={35} className="input tabnum" />
+          </div>
+          <div>
+            <label className="label" htmlFor="ns-etab">
+              Établissement
+            </label>
+            <select id="ns-etab" name="etablissement_id" className="input" defaultValue={etablissements[0]?.id ?? ""}>
               {etablissements.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.libelle}
@@ -85,24 +105,20 @@ export function NouveauSalarie({ etablissements }: { etablissements: { id: strin
             </select>
           </div>
           <div>
-            <label className="label">Heures hebdo (contrat)</label>
-            <input name="contrat_heures_hebdo" type="number" step="0.5" min="0" max="60" defaultValue={35} className="input" />
+            <label className="label" htmlFor="ns-date">
+              Date d'entrée
+            </label>
+            <input id="ns-date" name="date_entree" type="date" className="input tabnum" />
           </div>
-          <div>
-            <label className="label">Date d'entrée</label>
-            <input name="date_entree" type="date" className="input" />
-          </div>
-          {erreur && <p className="text-sm text-red-600 sm:col-span-3">{erreur}</p>}
-          <div className="flex gap-2 sm:col-span-3">
-            <button type="submit" className="btn-primary" disabled={enCours}>
-              {enCours ? "Création…" : "Créer et générer badge + PIN"}
-            </button>
-            <button type="button" className="btn-secondary" onClick={() => setOuvert(false)}>
-              Annuler
-            </button>
-          </div>
-        </form>
-      )}
+          <p className="text-[13px]" style={{ color: "var(--muted)", lineHeight: 1.5 }}>
+            Un badge QR et un PIN à 4 chiffres sont générés à la création.
+          </p>
+          {erreur && <p className="text-sm" style={{ color: "var(--danger-ink)" }}>{erreur}</p>}
+          <button type="submit" className="btn-primary" disabled={enCours}>
+            {enCours ? "Création…" : "Créer le salarié"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

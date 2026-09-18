@@ -1,78 +1,439 @@
 @import "tailwindcss";
 
-:root {
-  --navy: #0b1f3a;
-  --cyan: #22d3ee;
-}
+/* =========================================================================
+   Kipointe — fondations visuelles.
 
-html {
+   Deux registres cohabitent, comme le prévoit le design system OMNIUP :
+   - BUREAU (gérant, salarié, connexion) : tokens OMNIUP, navy #0E2E6B,
+     cyan #1FA9F0, fond #F5F7FA, Manrope pour les titres, système pour le corps.
+   - KIOSQUE (tablette murale) : fond #0B1F3A, accent #22D3EE, verts et rouges
+     éclaircis pour rester au-dessus de 4,5:1 sur bleu nuit, typographie très
+     large — lisible à un mètre.
+   ========================================================================= */
+
+:root {
+  /* ---------- Marque OMNIUP ---------- */
+  --navy: #0e2e6b;
+  --navy-deep: #051442;
+  --navy-darker: #020a24;
+  --cyan: #1fa9f0;
+  --cyan-bright: #4adcff;
+  --cyan-glow: rgba(31, 169, 240, 0.45);
+
+  /* ---------- Neutres bureau ---------- */
+  --ink: #0e1a33;
+  --muted: #5c6b86;
+  --faint: #9aa7bd;
+  --bg-portal: #f5f7fa;
+  --line-portal: #e2e7ef;
+
+  /* ---------- Sémantique bureau ---------- */
+  --success: #2bb673;
+  --success-bg: #e6f6ee;
+  --success-ink: #0b5d3b;
+  --warn: #f5a524;
+  --warn-bg: #fff4e0;
+  --warn-ink: #7a4b00;
+  --danger: #e5484d;
+  --danger-bg: #fdecec;
+  --danger-ink: #a21b20;
+  --info-bg: #e8f4fd;
+  --info-ink: #0a5e8c;
+
+  /* ---------- Kiosque ---------- */
+  --k-bg: #0b1f3a;
+  --k-surface: rgba(255, 255, 255, 0.07);
+  --k-line: rgba(255, 255, 255, 0.14);
+  --k-accent: #22d3ee;
+  --k-accent-ink: #062430;
+  --k-success: #10b981;
+  --k-success-soft: #6ee7b7;
+  --k-warn: #f59e0b;
+  --k-warn-ink: #3a2503;
+  --k-danger: #ef4444;
+  --k-danger-soft: #fca5a5;
+
   color-scheme: light;
 }
 
+@theme inline {
+  --color-navy: var(--navy);
+  --color-cyan: var(--cyan);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --font-sans: var(--font-manrope), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html,
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  padding: 0;
 }
 
-/* ─── Composants gérant ─── */
-@utility btn {
-  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-md border border-transparent px-3 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
-}
-.btn-primary {
-  @apply btn bg-[var(--navy)] text-white hover:bg-slate-800;
-}
-.btn-secondary {
-  @apply btn border-slate-300 bg-white text-slate-800 hover:bg-slate-100;
-}
-.btn-danger {
-  @apply btn border-red-200 bg-red-50 text-red-700 hover:bg-red-100;
-}
-.btn-sm {
-  @apply px-2 py-1 text-xs;
-}
-.input {
-  @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--navy)] focus:ring-2 focus:ring-cyan-200 focus:outline-none;
-}
-.label {
-  @apply mb-1 block text-xs font-semibold tracking-wide text-slate-600 uppercase;
-}
-.card {
-  @apply rounded-lg border border-slate-200 bg-white p-4 shadow-sm;
-}
-.badge {
-  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
-}
-.table {
-  @apply w-full border-collapse text-sm;
-}
-.table th {
-  @apply border-b border-slate-200 bg-slate-100 px-2 py-2 text-left text-xs font-semibold tracking-wide text-slate-600 uppercase;
-}
-.table td {
-  @apply border-b border-slate-100 px-2 py-2 align-top;
+body {
+  background: var(--bg-portal);
+  color: var(--ink);
+  /* Registre bureau : police système pour la densité et la vitesse. */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ─── Kiosque (tablette murale, portrait) ─── */
-.kiosque {
-  @apply flex min-h-screen flex-col bg-[var(--navy)] text-white select-none;
-  touch-action: manipulation;
+/* Focus clavier : contour cyan 3 px décalé de 2 px, jamais supprimé. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 2px;
 }
-.kiosque-heure {
-  font-size: clamp(3.5rem, 14vw, 7rem);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
+
+a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--navy);
+}
+
+/* Toutes les heures et durées s'alignent en colonne. */
+.tabnum {
   font-variant-numeric: tabular-nums;
 }
-.pin-touche {
-  @apply flex aspect-square items-center justify-center rounded-2xl bg-white/10 text-5xl font-semibold active:bg-cyan-400 active:text-[var(--navy)];
+
+/* ───────────────────────── Typographie ───────────────────────── */
+
+.display {
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
 }
+.titre {
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.titre-sm {
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-size: 18px;
+}
+/* Kicker monospace : « SEMAINE 38 · 2026 ». Deux chiffres, em-dash unique. */
+.kicker {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.mono {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+/* ───────────────────────── Composants bureau ───────────────────────── */
+
+@utility btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-full border border-transparent px-4 py-2.5 text-[13px] leading-none font-bold transition disabled:cursor-not-allowed disabled:opacity-50;
+}
+.btn-primary {
+  @apply btn text-white;
+  background: var(--cyan);
+  box-shadow: 0 8px 28px var(--cyan-glow);
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 34px var(--cyan-glow);
+}
+.btn-primary:disabled {
+  box-shadow: none;
+}
+.btn-navy {
+  @apply btn text-white;
+  background: var(--navy);
+}
+.btn-navy:hover:not(:disabled) {
+  background: #123a86;
+}
+.btn-secondary {
+  @apply btn bg-white;
+  color: var(--ink);
+  border-color: var(--line-portal);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-portal);
+}
+.btn-danger {
+  @apply btn;
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+  border-color: var(--danger);
+}
+.btn-danger:hover:not(:disabled) {
+  background: #fbdcdc;
+}
+.btn-sm {
+  @apply px-3 py-1.5 text-xs;
+}
+.btn-dashed {
+  @apply btn bg-transparent text-[13px] font-semibold;
+  color: var(--muted);
+  border: 1px dashed var(--faint);
+}
+
+.input {
+  @apply w-full rounded-[10px] border bg-white px-3.5 text-sm;
+  height: 42px;
+  border-color: var(--line-portal);
+  color: var(--ink);
+}
+textarea.input {
+  height: auto;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.input:focus {
+  border-color: var(--cyan);
+}
+.input-erreur {
+  border-width: 2px;
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+.label {
+  @apply mb-1.5 block text-[13px] font-semibold;
+  color: var(--muted);
+}
+
+.card {
+  @apply rounded-xl border bg-white p-[22px];
+  border-color: var(--line-portal);
+}
+.card-plat {
+  @apply rounded-xl border bg-white;
+  border-color: var(--line-portal);
+}
+
+/* Pastilles de statut : toujours une icône ou un point, plus un mot. */
+.pastille {
+  @apply inline-flex items-center gap-1.5 rounded-full px-3 py-[5px] text-xs font-bold whitespace-nowrap;
+}
+.pastille-ok {
+  background: var(--success-bg);
+  color: var(--success-ink);
+}
+.pastille-attente {
+  background: #eef1f6;
+  color: #4a5975;
+}
+.pastille-info {
+  background: var(--info-bg);
+  color: var(--info-ink);
+}
+.pastille-alerte {
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+}
+.pastille-danger {
+  background: var(--danger-bg);
+  color: var(--danger-ink);
+}
+
+/* Encarts pleine largeur */
+@utility encart {
+  @apply rounded-xl border p-5;
+}
+.encart-alerte {
+  @apply encart;
+  background: var(--warn-bg);
+  border-color: var(--warn);
+  color: var(--warn-ink);
+}
+.encart-ok {
+  @apply encart;
+  background: var(--success-bg);
+  border-color: var(--success);
+  color: var(--success-ink);
+}
+.encart-info {
+  @apply encart;
+  background: var(--info-bg);
+  border-color: var(--cyan);
+  color: var(--info-ink);
+}
+.encart-danger {
+  @apply encart;
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger-ink);
+}
+
+/* Tableaux : en-tête monospace, lignes à filet clair, survol discret. */
+.tbl {
+  @apply w-full border-collapse text-sm;
+}
+.tbl thead th {
+  @apply px-3.5 py-3 text-left font-medium;
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--bg-portal);
+  border-bottom: 1px solid var(--line-portal);
+}
+.tbl tbody td {
+  @apply px-3.5 py-3 align-middle;
+  border-top: 1px solid var(--line-portal);
+}
+.tbl tbody tr:hover {
+  background: #fafbfd;
+}
+.tbl tfoot td {
+  @apply px-3.5 py-3 font-bold;
+  background: var(--bg-portal);
+  border-top: 1px solid var(--line-portal);
+}
+
+/* ───────────────────────── Kiosque (tablette murale) ───────────────────────── */
+
+.kiosque {
+  @apply flex min-h-screen flex-col select-none;
+  background: var(--k-bg);
+  color: #fff;
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  touch-action: manipulation;
+  overflow: hidden;
+}
+/* Touche du pavé : 110 px de haut, cyan plein à l'appui. */
+@utility k-touche {
+  @apply flex items-center justify-center rounded-2xl font-semibold;
+  height: clamp(84px, 8.6vh, 110px);
+  border: 1px solid var(--k-line);
+  background: var(--k-surface);
+  color: #fff;
+  font-size: clamp(34px, 4.4vw, 46px);
+  font-variant-numeric: tabular-nums;
+  transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+}
+.k-touche:active,
+.k-touche[data-pressed="true"] {
+  background: var(--k-accent);
+  color: var(--k-accent-ink);
+  border-color: var(--k-accent);
+}
+.k-touche-annuler {
+  @apply k-touche gap-2.5 text-[26px] font-bold;
+  border: 2px solid #f87171;
+  background: rgba(248, 113, 113, 0.14);
+  color: var(--k-danger-soft);
+  font-size: clamp(20px, 2.6vw, 26px);
+}
+.k-touche-annuler:active {
+  background: #f87171;
+  color: #2e0707;
+  border-color: #f87171;
+}
+.k-touche-effacer {
+  @apply k-touche gap-2.5;
+  font-size: clamp(20px, 2.6vw, 26px);
+}
+
+@keyframes k-pop {
+  from {
+    transform: scale(0.72);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes k-rise {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes k-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes k-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.anim-pop {
+  animation: k-pop 0.26s ease-out;
+}
+.anim-rise {
+  animation: k-rise 0.3s ease-out;
+}
+.anim-spin {
+  animation: k-spin 1s linear infinite;
+}
+.anim-pulse {
+  animation: k-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-pop,
+  .anim-rise,
+  .anim-spin,
+  .anim-pulse {
+    animation: none;
+  }
+  .btn-primary:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Caméra : le flux n'est jamais affiché ni enregistré, il est seulement analysé
+   en mémoire pour y chercher un QR code. On garde l'élément dans le flux de
+   rendu (sinon le navigateur cesse de décoder les images) mais invisible. */
+.camera-muette {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 2px;
+  opacity: 0.01;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ───────────────────────── Impression ───────────────────────── */
 
 @media print {
   .no-print {
     display: none !important;
   }
   body {
-    background: white;
+    background: #fff;
+  }
+  .page-a4 {
+    box-shadow: none !important;
+    margin: 0 !important;
+    width: auto !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 14mm;
   }
 }

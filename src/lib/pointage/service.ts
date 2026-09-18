@@ -53,7 +53,7 @@ export type SuccesPointage = {
   ok: true;
   statut: "OK" | "REJOUE";
   pointage: { id: string; type: TypePointage; horodatage: string; source: string };
-  salarie: { id: string; prenom: string; badgeUuid: string; pinVersion: number };
+  salarie: { id: string; prenom: string; nom: string; matricule: string | null; badgeUuid: string; pinVersion: number };
   totalJourMinutes: number;
   /** Vérificateur pour le contrôle du PIN hors ligne (null lors d'un rejeu). */
   verificateurHorsLigne: string | null;
@@ -175,7 +175,14 @@ export async function enregistrerPointage(
       ok: true,
       statut: "REJOUE",
       pointage: { id: existant.id, type: existant.type, horodatage: existant.horodatageEffectif.toISOString(), source: existant.source },
-      salarie: { id: existant.salarieId, prenom: s?.prenom ?? "", badgeUuid: s?.badgeUuid ?? demande.badgeUuid, pinVersion: s?.pinVersion ?? 0 },
+      salarie: {
+        id: existant.salarieId,
+        prenom: s?.prenom ?? "",
+        nom: s?.nom ?? "",
+        matricule: s?.matricule ?? null,
+        badgeUuid: s?.badgeUuid ?? demande.badgeUuid,
+        pinVersion: s?.pinVersion ?? 0,
+      },
       totalJourMinutes: s ? await totalDuJour(tx, ctx, s, existant.horodatageEffectif, maintenant) : 0,
       verificateurHorsLigne: null,
       deriveHorlogeMs: null,
@@ -339,7 +346,7 @@ export async function enregistrerPointage(
     ok: true,
     statut: "OK",
     pointage: { id: insere.id, type, horodatage: effectif.toISOString(), source: insere.source },
-    salarie: { id: s.id, prenom: s.prenom, badgeUuid: s.badgeUuid, pinVersion: s.pinVersion },
+    salarie: { id: s.id, prenom: s.prenom, nom: s.nom, matricule: s.matricule, badgeUuid: s.badgeUuid, pinVersion: s.pinVersion },
     totalJourMinutes: await totalDuJour(tx, ctx, s, effectif, maintenant),
     verificateurHorsLigne: verificateurHorsLigne(ctx.token, s.badgeUuid, s.pinVersion, demande.pin),
     deriveHorlogeMs,

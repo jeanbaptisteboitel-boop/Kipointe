@@ -20,7 +20,7 @@ export type ElementFile = {
 
 export type TypePointage = "ENTREE" | "SORTIE" | "DEBUT_PAUSE" | "FIN_PAUSE";
 
-export type SalarieCache = { badge_uuid: string; prenom: string; pin_version: number };
+export type SalarieCache = { badge_uuid: string; prenom: string; nom: string; matricule: string | null; pin_version: number };
 export type VerificateurCache = { badge_uuid: string; pin_version: number; verificateur: string };
 export type DernierPointageCache = { badge_uuid: string; type: TypePointage; horodatage: string };
 
@@ -28,7 +28,7 @@ export type ReponsePointage =
   | {
       statut: "OK" | "REJOUE";
       pointage: { id: string; type: TypePointage; horodatage: string; source: string };
-      salarie: { id: string; prenom: string; badge_uuid: string; pin_version: number };
+      salarie: { id: string; prenom: string; nom: string; matricule: string | null; badge_uuid: string; pin_version: number };
       total_jour_minutes: number;
       verificateur_hors_ligne: string | null;
       horloge_serveur: string;
@@ -41,7 +41,16 @@ export type ReponsePointage =
     };
 
 export type ResultatLocal =
-  | { ok: true; type: TypePointage | null; horodatage: Date; totalJourMinutes: number | null; horsLigne: boolean; prenom: string | null }
+  | {
+      ok: true;
+      type: TypePointage | null;
+      horodatage: Date;
+      totalJourMinutes: number | null;
+      horsLigne: boolean;
+      prenom: string | null;
+      /** « Camille Martin · SAL-001 » : lève l'ambiguïté entre deux prénoms identiques. */
+      nomComplet: string | null;
+    }
   | { ok: false; code: string; message: string; detail?: Record<string, unknown> | null; conserverBadge: boolean };
 
 export type EtatReseau = {

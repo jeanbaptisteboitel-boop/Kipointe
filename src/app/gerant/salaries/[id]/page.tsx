@@ -1,142 +1,188 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { IconeChevronGauche } from "@/components/icones";
+import { LigneAnomalie, PastilleVerrouille } from "@/components/ui";
 import { exigerGerant } from "@/lib/auth/session";
 import { libelleType } from "@/lib/pointage/service";
-import { formatDateFr, formatDuree, formatHeure, formatSemaine, nomJour } from "@/lib/temps/journee";
+import { formatDateCourte, formatDateFr, formatDuree, formatHeure, formatSemaine, joursSemaine, nomJour } from "@/lib/temps/journee";
 import { chargerSemaineSalarie, semaineDemandee } from "@/lib/ui/data";
-import { LIBELLES_ANOMALIE, LIBELLES_SOURCE } from "@/lib/ui/libelles";
+import { LIBELLES_SOURCE } from "@/lib/ui/libelles";
 import { SelecteurSemaine } from "../../SelecteurSemaine";
 import { ActionsSalarie } from "./ActionsSalarie";
-import { Corrections, SaisieManuelle } from "./Corrections";
-import { ValidationRecap } from "./ValidationRecap";
+import { Pointages } from "./Pointages";
+import { CarteRecap } from "./CarteRecap";
 
 export const metadata = { title: "Fiche salarié" };
 
-export default async function PageSalarie({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ semaine?: string }> }) {
+export default async function PageSalarie({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ semaine?: string }>;
+}) {
   const u = await exigerGerant();
   const { id } = await params;
   const { semaine: param } = await searchParams;
   const { annee, semaine } = semaineDemandee(param);
   const data = await chargerSemaineSalarie(u, id, annee, semaine);
   if (!data) notFound();
-  const { salarie: s, resultat, pointages, recap, parametres, anomalies } = data;
+
+  const { salarie: s, resultat, pointages, recap, parametres } = data;
   const maintenant = new Date();
   const verrouille = !!s.pinVerrouilleJusqua && s.pinVerrouilleJusqua > maintenant;
   const tz = parametres.timezone;
   const base = `/gerant/salaries/${s.id}`;
+  const jours = joursSemaine(annee, semaine);
+  const totalSup = resultat.heuresSup.reduce((x, h) => x + h.minutes, 0);
+  const nbCorrections = pointages.filter((p) => p.corrige).length;
+  const nbSaisiesManuelles = pointages.filter((p) => p.source === "SAISIE_MANUELLE").length;
+  const nbHorsLigne = pointages.filter((p) => p.source === "KIOSQUE_HORS_LIGNE").length;
+  const nbAnomaliesOuvertes = data.anomalies.filter((a) => a.statut === "OUVERTE" && jours.includes(a.dateJour)).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">
-            {s.nom} {s.prenom}
-          </h1>
-          <p className="text-sm text-slate-600">
-            {s.matricule ? `Matricule ${s.matricule} · ` : ""}
-            {formatDuree(s.contratHeuresHebdo)} / semaine · entré le {s.dateEntree ? formatDateFr(s.dateEntree) : "—"}
-            {!s.actif && " · SORTI"}
-          </p>
-          <p className="mt-1 font-mono text-xs text-slate-500">Badge : BADGE:{s.badgeUuid}</p>
-          {verrouille && (
-            <p className="mt-2 rounded bg-red-50 px-2 py-1 text-sm text-red-800">Badge verrouillé jusqu'à {formatHeure(s.pinVerrouilleJusqua!, tz)} (5 PIN erronés).</p>
-          )}
+    <div className="flex flex-col gap-[18px]">
+      <Link href="/gerant/salaries" className="flex w-max items-center gap-1.5 text-[13px] font-semibold" style={{ color: "var(--muted)" }}>
+        <IconeChevronGauche size={15} />
+        Tous les salariés
+      </Link>
+
+      <div className="card">
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="titre text-[28px]">
+                {s.prenom} {s.nom}
+              </h1>
+              {verrouille && <PastilleVerrouille />}
+              {!s.actif && <span className="pastille pastille-attente">sorti</span>}
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-[18px] text-[13px]" style={{ color: "var(--muted)" }}>
+              {s.matricule && (
+                <span>
+                  Matricule <strong className="mono" style={{ color: "var(--ink)" }}>{s.matricule}</strong>
+                </span>
+              )}
+              <span>
+                Contrat <strong className="tabnum" style={{ color: "var(--ink)" }}>{formatDuree(s.contratHeuresHebdo)}</strong> / semaine
+              </span>
+              <span>
+                Badge <strong className="mono" style={{ color: "var(--ink)" }}>{s.badgeUuid.slice(0, 13).toUpperCase()}</strong>
+              </span>
+              {s.dateEntree && <span>Entré le {formatDateFr(s.dateEntree)}</span>}
+            </div>
+            {verrouille && (
+              <p className="mt-2.5 text-[13px]" style={{ color: "var(--danger-ink)" }}>
+                Badge verrouillé jusqu'à {formatHeure(s.pinVerrouilleJusqua!, tz)} après cinq codes erronés.
+              </p>
+            )}
+          </div>
+          <ActionsSalarie salarieId={s.id} actif={s.actif} verrouille={verrouille} />
         </div>
-        <ActionsSalarie salarieId={s.id} actif={s.actif} verrouille={verrouille} />
       </div>
 
       <SelecteurSemaine annee={annee} semaine={semaine} base={base} />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="card lg:col-span-2">
-          <h2 className="mb-3 font-semibold">Semaine {semaine} — détail par journée</h2>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Journée</th>
-                <th>Entrées → sorties</th>
-                <th className="text-right">Total</th>
-                <th>Alertes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {resultat.jours.map((j) => {
-                const alertes = resultat.anomalies.filter((a) => a.dateJour === j.date);
-                return (
-                  <tr key={j.date}>
-                    <td className="whitespace-nowrap">
-                      {nomJour(j.date, true)} {formatDateFr(j.date)}
-                    </td>
-                    <td className="tabular-nums">
-                      {j.intervalles.length === 0
-                        ? "—"
-                        : j.intervalles.map((it, i) => (
-                            <span key={i} className="mr-3 inline-block">
-                              {formatHeure(it.debut, tz)} → {it.fin ? formatHeure(it.fin, tz) : it.enCours ? "…" : "??"}
-                            </span>
-                          ))}
-                    </td>
-                    <td className="text-right font-semibold tabular-nums">{formatDuree(j.minutes)}</td>
-                    <td className="text-xs text-amber-800">{alertes.map((a) => LIBELLES_ANOMALIE[a.type]).join(", ")}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={2} className="font-semibold">
-                  Total hebdomadaire
-                </td>
-                <td className="text-right font-bold tabular-nums">{formatDuree(resultat.totalMinutes)}</td>
-                <td className="text-xs">
-                  {resultat.heuresSup
-                    .filter((h) => h.minutes > 0)
-                    .map((h) => `${formatDuree(h.minutes)} à ${h.taux} %`)
-                    .join(" · ") || "pas d'heures sup."}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+      <div className="flex flex-wrap items-start gap-5">
+        <div className="flex min-w-0 flex-1 basis-[560px] flex-col gap-[18px]">
+          <div className="card-plat overflow-x-auto">
+            <div
+              className="flex flex-wrap items-center justify-between gap-3 px-[18px] py-4"
+              style={{ borderBottom: "1px solid var(--line-portal)", minWidth: 620 }}
+            >
+              <span className="titre-sm">
+                Semaine {semaine} · du {formatDateCourte(jours[0]!)} au {formatDateCourte(jours[6]!)}
+              </span>
+              <span className="tabnum text-[13px]" style={{ color: "var(--muted)" }}>
+                Total {formatDuree(resultat.totalMinutes)} · H. sup. {formatDuree(totalSup)}
+              </span>
+            </div>
+            <table className="tbl" style={{ minWidth: 620 }}>
+              <thead>
+                <tr>
+                  <th className="whitespace-nowrap" style={{ width: 104 }}>
+                    Jour
+                  </th>
+                  <th>Intervalles</th>
+                  <th className="text-right whitespace-nowrap" style={{ width: 84 }}>
+                    Total
+                  </th>
+                  <th style={{ width: 190 }}>Anomalie</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resultat.jours.map((j) => {
+                  const alertes = resultat.anomalies.filter((a) => a.dateJour === j.date);
+                  const repos = j.intervalles.length === 0;
+                  return (
+                    <tr key={j.date} style={alertes.length ? { background: "var(--warn-bg)" } : undefined}>
+                      <td className="tabnum text-[13px] font-semibold whitespace-nowrap" style={alertes.length ? { color: "var(--warn-ink)" } : undefined}>
+                        {nomJour(j.date, true)} {formatDateCourte(j.date)}
+                      </td>
+                      <td className="tabnum" style={{ color: repos ? "var(--faint)" : alertes.length ? "var(--warn-ink)" : undefined }}>
+                        {repos
+                          ? "Repos"
+                          : j.intervalles.map((it, i) => (
+                              <span key={i} className="mr-4 inline-block whitespace-nowrap">
+                                {formatHeure(it.debut, tz)} → {it.fin ? formatHeure(it.fin, tz) : it.enCours ? "en cours" : "?"}
+                              </span>
+                            ))}
+                      </td>
+                      <td
+                        className="tabnum text-right font-bold whitespace-nowrap"
+                        style={{ color: repos ? "var(--faint)" : alertes.length ? "var(--warn-ink)" : undefined }}
+                      >
+                        {j.minutes > 0 ? formatDuree(j.minutes) : "—"}
+                      </td>
+                      <td>
+                        {alertes.length === 0 ? (
+                          <span style={{ color: "var(--faint)" }}>—</span>
+                        ) : (
+                          <div className="flex flex-col gap-1">
+                            {alertes.map((a, i) => (
+                              <LigneAnomalie key={i} type={a.type} />
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <Pointages
+            salarieId={s.id}
+            timezone={tz}
+            pointages={pointages.map((p) => ({
+              id: p.id,
+              horodatage: p.horodatage.toISOString(),
+              jour: `${nomJour(p.horodatage.toISOString().slice(0, 10), true)}`,
+              heure: formatHeure(p.horodatage, tz),
+              type: p.type,
+              typeLibelle: libelleType(p.type),
+              source: LIBELLES_SOURCE[p.source] ?? p.source,
+              corrige: p.corrige,
+              motif: p.motif,
+            }))}
+          />
         </div>
 
-        <ValidationRecap recap={{ id: recap.id, valideLe: recap.valideLe?.toISOString() ?? null, hash: recap.hashSha256 }} terminee={resultat.terminee} nbOublis={resultat.anomalies.filter((a) => a.type === "OUBLI_SORTIE").length} />
-      </div>
-
-      <div className="card">
-        <h2 className="mb-3 font-semibold">Pointages de la semaine ({pointages.length})</h2>
-        <Corrections
-          pointages={pointages.map((p) => ({
-            id: p.id,
-            horodatage: p.horodatage.toISOString(),
-            libelle: `${nomJour(p.horodatage.toISOString().slice(0, 10), true)} ${formatHeure(p.horodatage, tz)}`,
-            type: p.type,
-            typeLibelle: libelleType(p.type),
-            source: LIBELLES_SOURCE[p.source] ?? p.source,
-            corrige: p.corrige,
-            motif: p.motif,
-          }))}
-          timezone={tz}
+        <CarteRecap
+          recap={{ id: recap.id, valideLe: recap.valideLe?.toISOString() ?? null, hash: recap.hashSha256 }}
+          terminee={resultat.terminee}
+          totalMinutes={resultat.totalMinutes}
+          dureeReference={parametres.dureeHebdoReference}
+          heuresSup={resultat.heuresSup}
+          nbCorrections={nbCorrections}
+          nbSaisiesManuelles={nbSaisiesManuelles}
+          nbHorsLigne={nbHorsLigne}
+          nbAnomaliesOuvertes={nbAnomaliesOuvertes}
+          nbOublis={resultat.anomalies.filter((a) => a.type === "OUBLI_SORTIE").length}
+          semaineLabel={formatSemaine(annee, semaine)}
         />
-        <div className="mt-4 border-t border-slate-100 pt-4">
-          <SaisieManuelle salarieId={s.id} timezone={tz} />
-        </div>
       </div>
-
-      {anomalies.length > 0 && (
-        <div className="card">
-          <h2 className="mb-3 font-semibold">Historique des anomalies</h2>
-          <ul className="space-y-1 text-sm">
-            {anomalies.map((a) => (
-              <li key={a.id}>
-                <Link href={`${base}?semaine=${formatSemaine(annee, semaine)}`} className="text-slate-500">
-                  {formatDateFr(a.dateJour)}
-                </Link>{" "}
-                — {LIBELLES_ANOMALIE[a.type]} <span className="badge ml-1 bg-slate-100 text-slate-600">{a.statut.toLowerCase()}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
