@@ -1,0 +1,1861 @@
+{
+  "id": "95883c40-d74b-4a21-9ef5-ca60479fdf5b",
+  "prevId": "4c6a04cb-e40f-4c33-8b2e-dd78a0eb274a",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.anomalie": {
+      "name": "anomalie",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organisation_id": {
+          "name": "organisation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "salarie_id": {
+          "name": "salarie_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_jour": {
+          "name": "date_jour",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "type_anomalie",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "statut": {
+          "name": "statut",
+          "type": "statut_anomalie",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'OUVERTE'"
+        },
+        "detail": {
+          "name": "detail",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "traitee_par_id": {
+          "name": "traitee_par_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "traitee_le": {
+          "name": "traitee_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "anomalie_unique_jour_type_uidx": {
+          "name": "anomalie_unique_jour_type_uidx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "salarie_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "date_jour",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "anomalie_org_statut_idx": {
+          "name": "anomalie_org_statut_idx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "statut",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "anomalie_organisation_id_organisation_id_fk": {
+          "name": "anomalie_organisation_id_organisation_id_fk",
+          "tableFrom": "anomalie",
+          "columnsFrom": [
+            "organisation_id"
+          ],
+          "tableTo": "organisation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "anomalie_salarie_id_salarie_id_fk": {
+          "name": "anomalie_salarie_id_salarie_id_fk",
+          "tableFrom": "anomalie",
+          "columnsFrom": [
+            "salarie_id"
+          ],
+          "tableTo": "salarie",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "anomalie_traitee_par_id_utilisateur_id_fk": {
+          "name": "anomalie_traitee_par_id_utilisateur_id_fk",
+          "tableFrom": "anomalie",
+          "columnsFrom": [
+            "traitee_par_id"
+          ],
+          "tableTo": "utilisateur",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.correction": {
+      "name": "correction",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "pointage_id": {
+          "name": "pointage_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organisation_id": {
+          "name": "organisation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auteur_id": {
+          "name": "auteur_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ancienne_valeur": {
+          "name": "ancienne_valeur",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nouvelle_valeur": {
+          "name": "nouvelle_valeur",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "motif": {
+          "name": "motif",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "correction_pointage_idx": {
+          "name": "correction_pointage_idx",
+          "columns": [
+            {
+              "expression": "pointage_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "correction_org_idx": {
+          "name": "correction_org_idx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "correction_pointage_id_pointage_id_fk": {
+          "name": "correction_pointage_id_pointage_id_fk",
+          "tableFrom": "correction",
+          "columnsFrom": [
+            "pointage_id"
+          ],
+          "tableTo": "pointage",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "correction_organisation_id_organisation_id_fk": {
+          "name": "correction_organisation_id_organisation_id_fk",
+          "tableFrom": "correction",
+          "columnsFrom": [
+            "organisation_id"
+          ],
+          "tableTo": "organisation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "correction_auteur_id_utilisateur_id_fk": {
+          "name": "correction_auteur_id_utilisateur_id_fk",
+          "tableFrom": "correction",
+          "columnsFrom": [
+            "auteur_id"
+          ],
+          "tableTo": "utilisateur",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.etablissement": {
+      "name": "etablissement",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organisation_id": {
+          "name": "organisation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "libelle": {
+          "name": "libelle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "adresse": {
+          "name": "adresse",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'Europe/Paris'"
+        },
+        "actif": {
+          "name": "actif",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "etablissement_org_idx": {
+          "name": "etablissement_org_idx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "etablissement_organisation_id_organisation_id_fk": {
+          "name": "etablissement_organisation_id_organisation_id_fk",
+          "tableFrom": "etablissement",
+          "columnsFrom": [
+            "organisation_id"
+          ],
+          "tableTo": "organisation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.journal_acces": {
+      "name": "journal_acces",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organisation_id": {
+          "name": "organisation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "utilisateur_id": {
+          "name": "utilisateur_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "salarie_id": {
+          "name": "salarie_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "action": {
+          "name": "action",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "detail": {
+          "name": "detail",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "journal_acces_org_date_idx": {
+          "name": "journal_acces_org_date_idx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "journal_acces_organisation_id_organisation_id_fk": {
+          "name": "journal_acces_organisation_id_organisation_id_fk",
+          "tableFrom": "journal_acces",
+          "columnsFrom": [
+            "organisation_id"
+          ],
+          "tableTo": "organisation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "journal_acces_utilisateur_id_utilisateur_id_fk": {
+          "name": "journal_acces_utilisateur_id_utilisateur_id_fk",
+          "tableFrom": "journal_acces",
+          "columnsFrom": [
+            "utilisateur_id"
+          ],
+          "tableTo": "utilisateur",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "journal_acces_salarie_id_salarie_id_fk": {
+          "name": "journal_acces_salarie_id_salarie_id_fk",
+          "tableFrom": "journal_acces",
+          "columnsFrom": [
+            "salarie_id"
+          ],
+          "tableTo": "salarie",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.organisation": {
+      "name": "organisation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "raison_sociale": {
+          "name": "raison_sociale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "siret": {
+          "name": "siret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "convention_collective": {
+          "name": "convention_collective",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duree_hebdo_reference": {
+          "name": "duree_hebdo_reference",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 2100
+        },
+        "paliers_heures_sup": {
+          "name": "paliers_heures_sup",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[{\"seuilHeures\":35,\"taux\":25},{\"seuilHeures\":43,\"taux\":50}]'::jsonb"
+        },
+        "repos_quotidien_min": {
+          "name": "repos_quotidien_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 660
+        },
+        "repos_hebdo_min": {
+          "name": "repos_hebdo_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 2100
+        },
+        "pause_obligatoire_apres": {
+          "name": "pause_obligatoire_apres",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 360
+        },
+        "pause_duree_min": {
+          "name": "pause_duree_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 20
+        },
+        "amplitude_max": {
+          "name": "amplitude_max",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 780
+        },
+        "journee_debut_heure": {
+          "name": "journee_debut_heure",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 4
+        },
+        "anti_doublon_secondes": {
+          "name": "anti_doublon_secondes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 60
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pointage": {
+      "name": "pointage",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organisation_id": {
+          "name": "organisation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "salarie_id": {
+          "name": "salarie_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "etablissement_id": {
+          "name": "etablissement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terminal_id": {
+          "name": "terminal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "horodatage_serveur": {
+          "name": "horodatage_serveur",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "horodatage_terminal": {
+          "name": "horodatage_terminal",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "offset_horloge_ms": {
+          "name": "offset_horloge_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "horodatage_effectif": {
+          "name": "horodatage_effectif",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "type_pointage",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "source_pointage",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "saisi_par_id": {
+          "name": "saisi_par_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motif": {
+          "name": "motif",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "pointage_org_salarie_horodatage_idx": {
+          "name": "pointage_org_salarie_horodatage_idx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "salarie_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "horodatage_effectif",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "pointage_org_horodatage_idx": {
+          "name": "pointage_org_horodatage_idx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "horodatage_effectif",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "pointage_idempotency_key_uidx": {
+          "name": "pointage_idempotency_key_uidx",
+          "columns": [
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "pointage_organisation_id_organisation_id_fk": {
+          "name": "pointage_organisation_id_organisation_id_fk",
+          "tableFrom": "pointage",
+          "columnsFrom": [
+            "organisation_id"
+          ],
+          "tableTo": "organisation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "pointage_salarie_id_salarie_id_fk": {
+          "name": "pointage_salarie_id_salarie_id_fk",
+          "tableFrom": "pointage",
+          "columnsFrom": [
+            "salarie_id"
+          ],
+          "tableTo": "salarie",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "pointage_etablissement_id_etablissement_id_fk": {
+          "name": "pointage_etablissement_id_etablissement_id_fk",
+          "tableFrom": "pointage",
+          "columnsFrom": [
+            "etablissement_id"
+          ],
+          "tableTo": "etablissement",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "pointage_terminal_id_terminal_id_fk": {
+          "name": "pointage_terminal_id_terminal_id_fk",
+          "tableFrom": "pointage",
+          "columnsFrom": [
+            "terminal_id"
+          ],
+          "tableTo": "terminal",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "pointage_saisi_par_id_utilisateur_id_fk": {
+          "name": "pointage_saisi_par_id_utilisateur_id_fk",
+          "tableFrom": "pointage",
+          "columnsFrom": [
+            "saisi_par_id"
+          ],
+          "tableTo": "utilisateur",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.recap_hebdo": {
+      "name": "recap_hebdo",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organisation_id": {
+          "name": "organisation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "salarie_id": {
+          "name": "salarie_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "annee": {
+          "name": "annee",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "semaine_iso": {
+          "name": "semaine_iso",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_minutes": {
+          "name": "total_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "heures_sup_25": {
+          "name": "heures_sup_25",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "heures_sup_50": {
+          "name": "heures_sup_50",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "heures_sup_detail": {
+          "name": "heures_sup_detail",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "detail_jours": {
+          "name": "detail_jours",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "pdf_object_key": {
+          "name": "pdf_object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hash_sha256": {
+          "name": "hash_sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valide_le": {
+          "name": "valide_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "valide_par_id": {
+          "name": "valide_par_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recap_hebdo_unique_uidx": {
+          "name": "recap_hebdo_unique_uidx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "salarie_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "annee",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "semaine_iso",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "recap_hebdo_organisation_id_organisation_id_fk": {
+          "name": "recap_hebdo_organisation_id_organisation_id_fk",
+          "tableFrom": "recap_hebdo",
+          "columnsFrom": [
+            "organisation_id"
+          ],
+          "tableTo": "organisation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "recap_hebdo_salarie_id_salarie_id_fk": {
+          "name": "recap_hebdo_salarie_id_salarie_id_fk",
+          "tableFrom": "recap_hebdo",
+          "columnsFrom": [
+            "salarie_id"
+          ],
+          "tableTo": "salarie",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "recap_hebdo_valide_par_id_utilisateur_id_fk": {
+          "name": "recap_hebdo_valide_par_id_utilisateur_id_fk",
+          "tableFrom": "recap_hebdo",
+          "columnsFrom": [
+            "valide_par_id"
+          ],
+          "tableTo": "utilisateur",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.salarie": {
+      "name": "salarie",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organisation_id": {
+          "name": "organisation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prenom": {
+          "name": "prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "matricule": {
+          "name": "matricule",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "etablissement_defaut_id": {
+          "name": "etablissement_defaut_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "badge_uuid": {
+          "name": "badge_uuid",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "pin_hash": {
+          "name": "pin_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pin_version": {
+          "name": "pin_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "pin_echecs": {
+          "name": "pin_echecs",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "pin_verrouille_jusqua": {
+          "name": "pin_verrouille_jusqua",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contrat_heures_hebdo": {
+          "name": "contrat_heures_hebdo",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 2100
+        },
+        "date_entree": {
+          "name": "date_entree",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "date_sortie": {
+          "name": "date_sortie",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actif": {
+          "name": "actif",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "salarie_org_idx": {
+          "name": "salarie_org_idx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "salarie_badge_uuid_uidx": {
+          "name": "salarie_badge_uuid_uidx",
+          "columns": [
+            {
+              "expression": "badge_uuid",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "salarie_org_matricule_uidx": {
+          "name": "salarie_org_matricule_uidx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "matricule",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "salarie_organisation_id_organisation_id_fk": {
+          "name": "salarie_organisation_id_organisation_id_fk",
+          "tableFrom": "salarie",
+          "columnsFrom": [
+            "organisation_id"
+          ],
+          "tableTo": "organisation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "salarie_etablissement_defaut_id_etablissement_id_fk": {
+          "name": "salarie_etablissement_defaut_id_etablissement_id_fk",
+          "tableFrom": "salarie",
+          "columnsFrom": [
+            "etablissement_defaut_id"
+          ],
+          "tableTo": "etablissement",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.session": {
+      "name": "session",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "utilisateur_id": {
+          "name": "utilisateur_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expire_le": {
+          "name": "expire_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "session_token_hash_uidx": {
+          "name": "session_token_hash_uidx",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "session_utilisateur_idx": {
+          "name": "session_utilisateur_idx",
+          "columns": [
+            {
+              "expression": "utilisateur_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "session_utilisateur_id_utilisateur_id_fk": {
+          "name": "session_utilisateur_id_utilisateur_id_fk",
+          "tableFrom": "session",
+          "columnsFrom": [
+            "utilisateur_id"
+          ],
+          "tableTo": "utilisateur",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tentative_pointage": {
+      "name": "tentative_pointage",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organisation_id": {
+          "name": "organisation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "terminal_id": {
+          "name": "terminal_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "badge_uuid": {
+          "name": "badge_uuid",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "salarie_id": {
+          "name": "salarie_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resultat": {
+          "name": "resultat",
+          "type": "resultat_tentative",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "tentative_terminal_date_idx": {
+          "name": "tentative_terminal_date_idx",
+          "columns": [
+            {
+              "expression": "terminal_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "tentative_badge_date_idx": {
+          "name": "tentative_badge_date_idx",
+          "columns": [
+            {
+              "expression": "badge_uuid",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "tentative_pointage_organisation_id_organisation_id_fk": {
+          "name": "tentative_pointage_organisation_id_organisation_id_fk",
+          "tableFrom": "tentative_pointage",
+          "columnsFrom": [
+            "organisation_id"
+          ],
+          "tableTo": "organisation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "tentative_pointage_terminal_id_terminal_id_fk": {
+          "name": "tentative_pointage_terminal_id_terminal_id_fk",
+          "tableFrom": "tentative_pointage",
+          "columnsFrom": [
+            "terminal_id"
+          ],
+          "tableTo": "terminal",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "tentative_pointage_salarie_id_salarie_id_fk": {
+          "name": "tentative_pointage_salarie_id_salarie_id_fk",
+          "tableFrom": "tentative_pointage",
+          "columnsFrom": [
+            "salarie_id"
+          ],
+          "tableTo": "salarie",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.terminal": {
+      "name": "terminal",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organisation_id": {
+          "name": "organisation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "etablissement_id": {
+          "name": "etablissement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "libelle": {
+          "name": "libelle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code_appairage_hash": {
+          "name": "code_appairage_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code_appairage_expire_le": {
+          "name": "code_appairage_expire_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "appaire_le": {
+          "name": "appaire_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "derniere_synchro": {
+          "name": "derniere_synchro",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "version_app": {
+          "name": "version_app",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "identifiant_materiel": {
+          "name": "identifiant_materiel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actif": {
+          "name": "actif",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "terminal_org_idx": {
+          "name": "terminal_org_idx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "terminal_token_hash_uidx": {
+          "name": "terminal_token_hash_uidx",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "terminal_code_appairage_uidx": {
+          "name": "terminal_code_appairage_uidx",
+          "columns": [
+            {
+              "expression": "code_appairage_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "terminal_organisation_id_organisation_id_fk": {
+          "name": "terminal_organisation_id_organisation_id_fk",
+          "tableFrom": "terminal",
+          "columnsFrom": [
+            "organisation_id"
+          ],
+          "tableTo": "organisation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "terminal_etablissement_id_etablissement_id_fk": {
+          "name": "terminal_etablissement_id_etablissement_id_fk",
+          "tableFrom": "terminal",
+          "columnsFrom": [
+            "etablissement_id"
+          ],
+          "tableTo": "etablissement",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.utilisateur": {
+      "name": "utilisateur",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organisation_id": {
+          "name": "organisation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nom": {
+          "name": "nom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prenom": {
+          "name": "prenom",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mot_de_passe_hash": {
+          "name": "mot_de_passe_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "role_utilisateur",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "salarie_id": {
+          "name": "salarie_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "actif": {
+          "name": "actif",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "utilisateur_email_uidx": {
+          "name": "utilisateur_email_uidx",
+          "columns": [
+            {
+              "expression": "lower(\"email\")",
+              "isExpression": true,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "utilisateur_org_idx": {
+          "name": "utilisateur_org_idx",
+          "columns": [
+            {
+              "expression": "organisation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "utilisateur_organisation_id_organisation_id_fk": {
+          "name": "utilisateur_organisation_id_organisation_id_fk",
+          "tableFrom": "utilisateur",
+          "columnsFrom": [
+            "organisation_id"
+          ],
+          "tableTo": "organisation",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "utilisateur_salarie_id_salarie_id_fk": {
+          "name": "utilisateur_salarie_id_salarie_id_fk",
+          "tableFrom": "utilisateur",
+          "columnsFrom": [
+            "salarie_id"
+          ],
+          "tableTo": "salarie",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.resultat_tentative": {
+      "name": "resultat_tentative",
+      "schema": "public",
+      "values": [
+        "OK",
+        "BADGE_INCONNU",
+        "PIN_INCORRECT",
+        "VERROUILLE",
+        "RATE_LIMIT"
+      ]
+    },
+    "public.role_utilisateur": {
+      "name": "role_utilisateur",
+      "schema": "public",
+      "values": [
+        "GERANT",
+        "SALARIE"
+      ]
+    },
+    "public.source_pointage": {
+      "name": "source_pointage",
+      "schema": "public",
+      "values": [
+        "KIOSQUE",
+        "KIOSQUE_HORS_LIGNE",
+        "SAISIE_MANUELLE"
+      ]
+    },
+    "public.statut_anomalie": {
+      "name": "statut_anomalie",
+      "schema": "public",
+      "values": [
+        "OUVERTE",
+        "TRAITEE",
+        "IGNOREE"
+      ]
+    },
+    "public.type_anomalie": {
+      "name": "type_anomalie",
+      "schema": "public",
+      "values": [
+        "OUBLI_SORTIE",
+        "DOUBLE_SCAN",
+        "HORS_PLAGE",
+        "REPOS_11H",
+        "REPOS_HEBDO",
+        "PAUSE_MANQUANTE",
+        "AMPLITUDE",
+        "PIN_VERROUILLE",
+        "POINTAGE_HORS_LIGNE"
+      ]
+    },
+    "public.type_pointage": {
+      "name": "type_pointage",
+      "schema": "public",
+      "values": [
+        "ENTREE",
+        "SORTIE",
+        "DEBUT_PAUSE",
+        "FIN_PAUSE"
+      ]
+    }
+  },
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
