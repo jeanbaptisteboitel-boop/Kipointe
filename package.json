@@ -17,7 +17,10 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "scaleway:setup": "tsx scripts/scaleway-bucket-setup.ts"
+    "env:preparer": "tsx scripts/preparer-env.ts",
+    "env:verifier": "tsx scripts/verifier-env.ts",
+    "scaleway:setup": "tsx scripts/scaleway-bucket-setup.ts",
+    "scaleway:verifier": "tsx scripts/scaleway-bucket-setup.ts --verifier"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1135.0",
