@@ -34,7 +34,8 @@ salariés.
 
 ```bash
 npm install
-cp .env.example .env          # renseigner DATABASE_URL (Neon) ou un Postgres local
+npm run env:preparer          # crée .env et tire les secrets au hasard ; reste à renseigner DATABASE_URL
+npm run env:verifier          # contrôle la cohérence des variables
 npm run db:migrate            # tables, index, policies RLS
 npm run db:seed               # organisation de démonstration (gérant, salariés, code d'appairage)
 npm run dev                   # http://localhost:3000
