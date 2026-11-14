@@ -6,7 +6,7 @@
  *   1. `preparerDepot` : contrôle d'accès et de taille, ligne créée « non confirmée », URL d'envoi ;
  *   2. le navigateur envoie le fichier directement au bucket ;
  *   3. `confirmerDepot` : le serveur relit ce qui a réellement été déposé — taille et premiers
- *      octets (PDF, JPEG, PNG, jamais le nom ni le type annoncé) — puis le rend consultable, ou
+ *      octets (PDF, JPEG, PNG, HEIC, jamais le nom ni le type annoncé) — puis le rend consultable, ou
  *      le supprime.
  * Seuls le salarié concerné et les administrateurs de son entreprise peuvent le lire. Il est
  * supprimé avec l'absence ; un envoi jamais confirmé est purgé par la tâche quotidienne.
@@ -26,7 +26,12 @@ export const MAX_JUSTIFICATIFS_PAR_ABSENCE = 5;
 /** Un envoi annoncé mais jamais confirmé est abandonné au bout de ce délai. */
 export const DELAI_ABANDON_MS = 60 * 60 * 1000;
 
-export type TypeJustificatif = "application/pdf" | "image/jpeg" | "image/png";
+export const TYPES_JUSTIFICATIF = ["application/pdf", "image/jpeg", "image/png", "image/heic", "image/heif"] as const;
+export type TypeJustificatif = (typeof TYPES_JUSTIFICATIF)[number];
+
+/** Marques HEIF (octets 8 à 11 d'un conteneur ISO « ftyp ») : photos HEIC des iPhone, et HEIF générique. */
+const MARQUES_HEIC = ["heic", "heix", "heim", "heis", "hevc", "hevx", "hevm", "hevs"];
+const MARQUES_HEIF = ["mif1", "msf1"];
 export type JustificatifResume = { id: string; nom: string; taille: number };
 export type CongeAvecJustificatifs = CongeAbsence & { justificatifs: JustificatifResume[] };
 type Acteur = { parAdmin: boolean; salarieId: string | null };
@@ -37,6 +42,13 @@ export function typeDuFichier(octets: Uint8Array): TypeJustificatif | null {
   if (debut(0x25, 0x50, 0x44, 0x46, 0x2d)) return "application/pdf";
   if (debut(0xff, 0xd8, 0xff)) return "image/jpeg";
   if (debut(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return "image/png";
+  // HEIC / HEIF : « ftyp » aux octets 4 à 7, puis la marque. Une vidéo MP4 ou une image AVIF ont
+  // le même en-tête « ftyp » mais une autre marque : elles ne passent pas.
+  if (octets.length >= 12 && String.fromCharCode(...octets.slice(4, 8)) === "ftyp") {
+    const marque = String.fromCharCode(...octets.slice(8, 12));
+    if (MARQUES_HEIC.includes(marque)) return "image/heic";
+    if (MARQUES_HEIF.includes(marque)) return "image/heif";
+  }
   return null;
 }
 
@@ -79,8 +91,8 @@ export async function preparerDepot(
   const c = await absenceAccessible(tx, p.congeId, p);
   if (!Number.isInteger(p.taille) || p.taille <= 0) throw new ErreurMetier("Fichier vide.");
   if (p.taille > TAILLE_MAX_JUSTIFICATIF) throw new ErreurMetier("Fichier trop volumineux : 25 Mo au plus.");
-  const typeMime = (["application/pdf", "image/jpeg", "image/png"] as const).find((t) => t === p.typeAnnonce);
-  if (!typeMime) throw new ErreurMetier("Format non accepté : déposez un PDF, une photo JPEG ou une image PNG.");
+  const typeMime = TYPES_JUSTIFICATIF.find((t) => t === p.typeAnnonce);
+  if (!typeMime) throw new ErreurMetier("Format non accepté : déposez un PDF ou une photo (JPEG, PNG, HEIC).");
   // Les envois en cours comptent : cinq onglets ne déposent pas vingt-cinq fichiers.
   const [n] = await tx.select({ n: sql<number>`count(*)::int` }).from(justificatif).where(eq(justificatif.congeId, c.id));
   if ((n?.n ?? 0) >= MAX_JUSTIFICATIFS_PAR_ABSENCE) throw new ErreurMetier(`${MAX_JUSTIFICATIFS_PAR_ABSENCE} justificatifs au plus par absence : retirez-en un d'abord.`);
@@ -110,7 +122,7 @@ export async function confirmerDepot(tx: Tx, stockage: Stockage, p: Acteur & { o
   if (!depose) return refuser("Le fichier n'est pas arrivé : réessayez.");
   if (depose.taille > TAILLE_MAX_JUSTIFICATIF) return refuser("Fichier trop volumineux : 25 Mo au plus.");
   const typeMime = typeDuFichier(depose.debut);
-  if (!typeMime) return refuser("Format non accepté : déposez un PDF, une photo JPEG ou une image PNG.");
+  if (!typeMime) return refuser("Format non accepté : déposez un PDF ou une photo (JPEG, PNG, HEIC).");
 
   await tx.update(justificatif).set({ typeMime, taille: depose.taille, confirmeLe: p.maintenant ?? new Date() }).where(eq(justificatif.id, j.id));
   if (!p.parAdmin) {

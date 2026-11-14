@@ -19,7 +19,7 @@ const TAILLE_MAX = 25 * 1024 * 1024;
  */
 async function deposer(congeId: string, fichier: File): Promise<string | null> {
   if (fichier.size > TAILLE_MAX) return "Fichier trop volumineux : 25 Mo au plus.";
-  const p = await preparerDepotJustificatif({ congeId, nom: fichier.name, taille: fichier.size, type: fichier.type });
+  const p = await preparerDepotJustificatif({ congeId, nom: fichier.name, taille: fichier.size, type: typeAnnonce(fichier) });
   if (!p.ok) return p.erreur;
   try {
     const r = await fetch(p.url, { method: "PUT", headers: { "Content-Type": p.type }, body: fichier });
@@ -30,7 +30,14 @@ async function deposer(congeId: string, fichier: File): Promise<string | null> {
   const c = await confirmerDepotJustificatif(p.id);
   return c.ok ? c.refus : c.erreur;
 }
-const FORMATS = "application/pdf,image/jpeg,image/png";
+const FORMATS = "application/pdf,image/jpeg,image/png,image/heic,image/heif,.heic,.heif";
+
+/** Type annoncé au serveur. Hors d'Apple, le navigateur ne reconnaît pas un .heic et laisse le type vide. */
+function typeAnnonce(fichier: File): string {
+  if (fichier.type) return fichier.type;
+  const extension = fichier.name.toLowerCase().split(".").pop();
+  return extension === "heic" ? "image/heic" : extension === "heif" ? "image/heif" : "";
+}
 
 /** Justificatifs d'une absence : liens de consultation, retrait, dépôt d'un nouveau fichier. */
 function Justificatifs({ conge, peutDeposer }: { conge: CongeAffiche; peutDeposer: boolean }) {
@@ -263,7 +270,7 @@ export function FormulaireConge({ mode, salarieId, salaries }: { mode: "admin" |
           <span className="label">Justificatif (facultatif)</span>
           <input type="file" accept={FORMATS} className="text-sm" onChange={(e) => setFichier(e.target.files?.[0] ?? null)} />
           <span className="mt-1 block text-[12px]" style={{ color: "var(--muted)" }}>
-            PDF ou photo (JPEG, PNG), 25 Mo au plus. Pour un arrêt de travail, déposez le volet destiné à l'employeur (volet 3), qui ne porte aucune information médicale.
+            PDF ou photo (JPEG, PNG, HEIC des iPhone), 25 Mo au plus. Pour un arrêt de travail, déposez le volet destiné à l'employeur (volet 3), qui ne porte aucune information médicale.
           </span>
         </label>
       </div>

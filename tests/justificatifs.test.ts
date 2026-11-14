@@ -83,6 +83,15 @@ describe("justificatifs d'absence", () => {
     expect(typeDuFichier(JPEG)).toBe("image/jpeg");
     expect(typeDuFichier(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe("image/png");
     expect(typeDuFichier(HTML)).toBeNull();
+    // Photos d'iPhone : conteneur « ftyp » + marque HEIC. Une vidéo MP4 ou une image AVIF, non.
+    const ftyp = (marque: string) => new Uint8Array([0, 0, 0, 0x18, ...new TextEncoder().encode(`ftyp${marque}`), 0, 0, 0, 0]);
+    expect(typeDuFichier(ftyp("heic"))).toBe("image/heic");
+    expect(typeDuFichier(ftyp("heix"))).toBe("image/heic");
+    expect(typeDuFichier(ftyp("mif1"))).toBe("image/heif");
+    expect(typeDuFichier(ftyp("isom"))).toBeNull();
+    expect(typeDuFichier(ftyp("mp42"))).toBeNull();
+    expect(typeDuFichier(ftyp("avif"))).toBeNull();
+    expect(typeDuFichier(new TextEncoder().encode("xxxxftyp"))).toBeNull();
     expect(nettoyerNom("C:\\Users\\moi\\acte <1>.pdf")).toBe("acte 1.pdf");
     expect(nettoyerNom("../../etc/passwd")).toBe("passwd");
     expect(nettoyerNom("")).toBe("justificatif");
@@ -129,6 +138,18 @@ describe("justificatifs d'absence", () => {
     // Annoncé JPEG, déposé PDF : accepté, sous son vrai type.
     const j = await deposer(PDF, "scan.jpg", "image/jpeg");
     expect((await dansOrg(fx, (tx) => trouverJustificatif(tx, j.id, moi())))!.typeMime).toBe("application/pdf");
+  });
+
+  it("accepte une photo HEIC d'iPhone, et refuse une vidéo annoncée comme telle", async () => {
+    const ftyp = (marque: string) => new Uint8Array([0, 0, 0, 0x18, ...new TextEncoder().encode(`ftyp${marque}`), 0, 0, 0, 0, 1, 2, 3, 4]);
+    const video = await preparer("IMG_0001.heic", 20, "image/heic");
+    objets.set(cleDe(video.url), ftyp("mp42"));
+    expect(await confirmerOuRefus(video.id)).toContain("Format non accepté");
+    const photo = await preparer("IMG_0002.HEIC", 20, "image/heic");
+    objets.set(cleDe(photo.url), ftyp("heic"));
+    const j = await confirmer(photo.id);
+    expect((await dansOrg(fx, (tx) => trouverJustificatif(tx, j.id, moi())))!.typeMime).toBe("image/heic");
+    await dansOrg(fx, (tx) => retirerJustificatif(tx, stockage, j.id, moi()));
   });
 
   it("ne laisse ni déposer, ni confirmer, ni lire sur l'absence d'un collègue", async () => {
