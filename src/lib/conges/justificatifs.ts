@@ -7,7 +7,7 @@
  *   2. le navigateur envoie le fichier directement au bucket ;
  *   3. `confirmerDepot` : le serveur relit ce qui a réellement été déposé — taille et premiers
  *      octets (PDF, JPEG, PNG, HEIC, jamais le nom ni le type annoncé) — puis le rend consultable, ou
- *      le supprime.
+ *      le supprime. Une photo HEIC est convertie en JPEG au passage.
  * Seuls le salarié concerné et les administrateurs de son entreprise peuvent le lire. Il est
  * supprimé avec l'absence ; un envoi jamais confirmé est purgé par la tâche quotidienne.
  */
@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import type { Tx } from "@/db";
 import { congeAbsence, justificatif, salarie, type CongeAbsence } from "@/db/schema";
 import { ErreurMetier } from "@/lib/actions";
+import { convertirHeicEnJpeg, nomEnJpeg } from "@/lib/conges/conversion";
 import { LIBELLES_CONGE } from "@/lib/conges/types";
 import { notifier } from "@/lib/notifications/service";
 import type { Stockage } from "@/lib/stockage";
@@ -107,7 +108,7 @@ export async function preparerDepot(
 }
 
 /** Temps 3 : vérifie ce qui a été déposé. Fichier absent, trop gros ou d'un autre format : supprimé et refusé. */
-export async function confirmerDepot(tx: Tx, stockage: Stockage, p: Acteur & { organisationId: string; id: string; maintenant?: Date }): Promise<JustificatifResume> {
+export async function confirmerDepot(tx: Tx, stockage: Stockage, p: Acteur & { organisationId: string; id: string; maintenant?: Date; convertir?: (octets: Uint8Array) => Promise<Uint8Array> }): Promise<JustificatifResume> {
   const [j] = /^[0-9a-f-]{36}$/i.test(p.id) ? await tx.select().from(justificatif).where(eq(justificatif.id, p.id)).for("update") : [];
   if (!j) throw new ErreurMetier("Envoi introuvable.");
   const c = await absenceAccessible(tx, j.congeId, p);
@@ -124,7 +125,24 @@ export async function confirmerDepot(tx: Tx, stockage: Stockage, p: Acteur & { o
   const typeMime = typeDuFichier(depose.debut);
   if (!typeMime) return refuser("Format non accepté : déposez un PDF ou une photo (JPEG, PNG, HEIC).");
 
-  await tx.update(justificatif).set({ typeMime, taille: depose.taille, confirmeLe: p.maintenant ?? new Date() }).where(eq(justificatif.id, j.id));
+  // Photo HEIC d'iPhone : convertie en JPEG, lisible dans tous les navigateurs. Si la conversion
+  // échoue (variante non prise en charge), l'original est gardé plutôt que de refuser le document.
+  let fichier = { cle: j.cle, nom: j.nom, typeMime, taille: depose.taille };
+  if (typeMime === "image/heic" || typeMime === "image/heif") {
+    try {
+      const original = await stockage.lire(j.cle);
+      if (!original) return refuser("Le fichier n'est pas arrivé : réessayez.");
+      const jpeg = await (p.convertir ?? convertirHeicEnJpeg)(original);
+      const cle = `${j.cle.slice(0, j.cle.lastIndexOf("/") + 1)}${randomUUID()}`;
+      await stockage.ecrire(cle, jpeg, "image/jpeg");
+      await stockage.supprimer([j.cle]);
+      fichier = { cle, nom: nomEnJpeg(j.nom), typeMime: "image/jpeg", taille: jpeg.length };
+    } catch (e) {
+      if (e instanceof ErreurRefus) throw e;
+      console.error("[justificatif] conversion HEIC impossible, original conservé :", e instanceof Error ? e.message : e);
+    }
+  }
+  await tx.update(justificatif).set({ ...fichier, confirmeLe: p.maintenant ?? new Date() }).where(eq(justificatif.id, j.id));
   if (!p.parAdmin) {
     const [fiche] = await tx.select({ prenom: salarie.prenom, nom: salarie.nom }).from(salarie).where(eq(salarie.id, c.salarieId));
     await notifier(tx, {
@@ -138,7 +156,7 @@ export async function confirmerDepot(tx: Tx, stockage: Stockage, p: Acteur & { o
       cle: `justificatif:${j.id}`,
     });
   }
-  return { id: j.id, nom: j.nom, taille: depose.taille };
+  return { id: j.id, nom: fichier.nom, taille: fichier.taille };
 }
 
 /**

@@ -24,6 +24,10 @@ export interface Stockage {
   /** URL présignée de lecture, servie avec le type vérifié et le nom d'origine. */
   urlLecture(cle: string, nom: string, typeMime: string): Promise<string>;
   supprimer(cles: string[]): Promise<void>;
+  /** Contenu entier d'un objet (conversion d'une photo) ; null s'il n'existe pas. */
+  lire(cle: string): Promise<Uint8Array | null>;
+  /** Dépôt d'un objet par le serveur lui-même. */
+  ecrire(cle: string, octets: Uint8Array, typeMime: string): Promise<void>;
 }
 
 export interface ConfigStockage {
@@ -90,6 +94,18 @@ export function stockageS3(cfg: ConfigStockage): Stockage {
         }),
         { expiresIn: DUREE_URL_LECTURE_S },
       );
+    },
+    async lire(cle) {
+      try {
+        const r = await s3.send(new GetObjectCommand({ Bucket: cfg.bucket, Key: cle }));
+        return r.Body ? await r.Body.transformToByteArray() : null;
+      } catch (e) {
+        if ((e as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 404) return null;
+        throw e;
+      }
+    },
+    async ecrire(cle, octets, typeMime) {
+      await s3.send(new PutObjectCommand({ Bucket: cfg.bucket, Key: cle, Body: octets, ContentType: typeMime, ContentLength: octets.length }));
     },
     async supprimer(cles) {
       for (let i = 0; i < cles.length; i += 500) {

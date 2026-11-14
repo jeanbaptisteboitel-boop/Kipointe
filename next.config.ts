@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   // Modules natifs / lourds à laisser hors du bundle serveur (Turbopack)
-  serverExternalPackages: ["@node-rs/argon2", "@neondatabase/serverless", "pg", "ws"],
+  serverExternalPackages: ["@node-rs/argon2", "@neondatabase/serverless", "pg", "ws", "heic-decode", "libheif-js"],
   async headers() {
     return [
       {

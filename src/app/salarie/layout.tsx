@@ -5,6 +5,8 @@ import { chargerOrganisation } from "@/lib/donnees";
 import { compterNonLues } from "@/lib/notifications/service";
 
 export const dynamic = "force-dynamic";
+// La vérification d'un justificatif (action serveur) peut convertir une photo HEIC : quelques secondes.
+export const maxDuration = 60;
 
 export default async function LayoutSalarie({ children }: { children: React.ReactNode }) {
   const u = await exigerSalarie();

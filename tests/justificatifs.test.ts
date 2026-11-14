@@ -1,4 +1,5 @@
 import { eq, isNull } from "drizzle-orm";
+import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { justificatif, notification } from "@/db/schema";
 import { withBypass, withTenant } from "@/db/tenant";
@@ -15,6 +16,7 @@ import {
   trouverJustificatif,
   typeDuFichier,
 } from "@/lib/conges/justificatifs";
+import { convertirHeicEnJpeg, nomEnJpeg } from "@/lib/conges/conversion";
 import { creerConge, supprimerConge } from "@/lib/conges/service";
 import { configStockage, type Stockage } from "@/lib/stockage";
 import { creerFixture, creerOrganisation, dansOrg, type Fixture } from "./helpers/db";
@@ -33,6 +35,10 @@ function bucketDeTest() {
       return o ? { taille: o.length, debut: o.slice(0, n) } : null;
     },
     urlLecture: async (cle, nom, type) => `https://bucket.test/${cle}?lecture&nom=${encodeURIComponent(nom)}&type=${encodeURIComponent(type)}`,
+    lire: async (cle) => objets.get(cle) ?? null,
+    ecrire: async (cle, octets) => {
+      objets.set(cle, octets);
+    },
     supprimer: async (cles) => {
       for (const c of cles) objets.delete(c);
     },
@@ -140,15 +146,43 @@ describe("justificatifs d'absence", () => {
     expect((await dansOrg(fx, (tx) => trouverJustificatif(tx, j.id, moi())))!.typeMime).toBe("application/pdf");
   });
 
-  it("accepte une photo HEIC d'iPhone, et refuse une vidéo annoncée comme telle", async () => {
+  it("convertit une vraie photo HEIC en JPEG, sous un nouveau nom et une nouvelle clé", async () => {
+    // Photo HEIC réelle (64 × 48), encodée par libheif.
+    const heic = new Uint8Array(readFileSync("tests/fixtures/mini.heic"));
+    expect(typeDuFichier(heic)).toBe("image/heic");
+    const jpeg = await convertirHeicEnJpeg(heic);
+    expect(typeDuFichier(jpeg)).toBe("image/jpeg");
+    expect(nomEnJpeg("IMG_0042.HEIC")).toBe("IMG_0042.jpg");
+    expect(nomEnJpeg("photo")).toBe("photo.jpg");
+
+    const avant = objets.size;
+    const p = await preparer("IMG_0042.HEIC", heic.length, "image/heic");
+    objets.set(cleDe(p.url), heic);
+    const j = await confirmer(p.id);
+    expect(j.nom).toBe("IMG_0042.jpg");
+    const lu = (await dansOrg(fx, (tx) => trouverJustificatif(tx, j.id, moi())))!;
+    expect(lu).toMatchObject({ typeMime: "image/jpeg", nom: "IMG_0042.jpg", taille: jpeg.length });
+    // L'original HEIC a quitté le bucket ; il n'y reste que le JPEG, sous une autre clé.
+    expect(lu.cle).not.toBe(cleDe(p.url));
+    expect(objets.has(cleDe(p.url))).toBe(false);
+    expect(typeDuFichier(objets.get(lu.cle)!)).toBe("image/jpeg");
+    expect(objets.size).toBe(avant + 1);
+    await dansOrg(fx, (tx) => retirerJustificatif(tx, stockage, j.id, moi()));
+  });
+
+  it("garde l'original si la conversion échoue, et refuse une vidéo annoncée comme photo", async () => {
     const ftyp = (marque: string) => new Uint8Array([0, 0, 0, 0x18, ...new TextEncoder().encode(`ftyp${marque}`), 0, 0, 0, 0, 1, 2, 3, 4]);
     const video = await preparer("IMG_0001.heic", 20, "image/heic");
     objets.set(cleDe(video.url), ftyp("mp42"));
     expect(await confirmerOuRefus(video.id)).toContain("Format non accepté");
-    const photo = await preparer("IMG_0002.HEIC", 20, "image/heic");
-    objets.set(cleDe(photo.url), ftyp("heic"));
-    const j = await confirmer(photo.id);
-    expect((await dansOrg(fx, (tx) => trouverJustificatif(tx, j.id, moi())))!.typeMime).toBe("image/heic");
+    // En-tête HEIC valide mais contenu illisible : le document reste déposé tel quel.
+    const abime = await preparer("IMG_0002.heic", 20, "image/heic");
+    objets.set(cleDe(abime.url), ftyp("heic"));
+    const j = await confirmer(abime.id);
+    expect(j.nom).toBe("IMG_0002.heic");
+    const lu = (await dansOrg(fx, (tx) => trouverJustificatif(tx, j.id, moi())))!;
+    expect(lu).toMatchObject({ typeMime: "image/heic", cle: cleDe(abime.url) });
+    expect(objets.has(lu.cle)).toBe(true);
     await dansOrg(fx, (tx) => retirerJustificatif(tx, stockage, j.id, moi()));
   });
 

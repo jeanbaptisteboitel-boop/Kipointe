@@ -70,6 +70,6 @@ drizzle/               migrations (0001_rls.sql : policies)
 - Jours fériés de France métropolitaine seulement (ni Alsace-Moselle ni outre-mer).
 - Les heures supplémentaires sont un écart au planning ; les majorations (25 %, 50 %) et le
   contingent restent du ressort de la paie.
-- Justificatifs : PDF, JPEG, PNG ou HEIC, cinq par absence. Une photo HEIC s'affiche dans Safari ;
-  les autres navigateurs la téléchargent.
+- Justificatifs : PDF, JPEG, PNG ou HEIC, cinq par absence. Une photo HEIC est convertie en JPEG à
+  l'arrivée ; si la conversion échoue (variante non prise en charge), l'original est conservé tel quel.
 - Le numéro de série est le seul contrôle d'accès d'une pointeuse (voir docs/POINTEUSE.md).
