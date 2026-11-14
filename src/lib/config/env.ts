@@ -2,11 +2,11 @@
  * Contrôle des variables d'environnement avant déploiement.
  *
  * Le but est d'attraper au sol les erreurs qui, en vol, sont silencieuses :
- *  - `CRON_SECRET` absent → la purge quotidienne répond 401 sans que personne ne le voie ;
+ *  - `CRON_SECRET` absent → la tâche quotidienne répond 401 : plus aucune notification, sans alerte ;
  *  - `DATABASE_URL` pointant sur l'endpoint direct → épuisement des connexions sur Vercel ;
  *  - `DATABASE_URL_UNPOOLED` pointant sur le pooler → migrations en échec au build ;
- *  - bucket hors `fr-par` ou base Neon hors UE → données personnelles sorties de l'Union ;
- *  - nom de bucket contenant un point → certificat TLS invalide en virtual-host style.
+ *  - base Neon hors UE → données personnelles de salariés sorties de l'Union ;
+ *  - envoi d'e-mails à moitié configuré → notifications jamais envoyées, sans erreur visible.
  *
  * Fonctions pures, sans accès disque ni réseau : testées dans `tests/env.test.ts`
  * et appelées par `scripts/verifier-env.ts`.
@@ -46,14 +46,11 @@ const PLACEHOLDERS = [
   "changez-moi-aussi",
   "changez-moi-32-octets-aleatoires-minimum",
   "USER:PASSWORD",
-  "SCWXXXXXXXXXXXXXXXXX",
-  "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "re_xxxxxxxx",
 ];
 
 const LONGUEUR_MINI_SESSION_SECRET = 32;
 const LONGUEUR_MINI_CRON_SECRET = 16;
-const RETENTION_ANNEES_PROJET = 5;
-const JOURS_PAR_AN = 365.25;
 
 /** Masque une valeur pour l'affichage : jamais de secret complet dans un journal. */
 export function masquer(valeur: string | undefined): string {
@@ -96,20 +93,6 @@ export function regionNeon(url: string): string | null {
   if (!h) return null;
   const m = /\.([a-z]{2}-[a-z]+-\d)\.aws\.neon\.tech$/.exec(h);
   return m?.[1] ?? null;
-}
-
-/** Nom de bucket compatible S3 *virtual-host style* : le client n'utilise pas le path-style. */
-export function nomBucketValide(nom: string): boolean {
-  if (nom.length < 3 || nom.length > 63) return false;
-  if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(nom)) return false;
-  if (nom.includes("--")) return false;
-  return true;
-}
-
-function entier(valeur: string): number | null {
-  if (!/^\d+$/.test(valeur.trim())) return null;
-  const n = Number(valeur.trim());
-  return Number.isFinite(n) ? n : null;
 }
 
 function controlerBase(env: Environnement, production: boolean, out: Diagnostic[]): void {
@@ -212,104 +195,29 @@ function controlerSecrets(env: Environnement, production: boolean, out: Diagnost
   }
 }
 
-function controlerStockage(env: Environnement, production: boolean, out: Diagnostic[]): void {
-  const cle = env.SCALEWAY_ACCESS_KEY_ID?.trim();
-  const secret = env.SCALEWAY_SECRET_ACCESS_KEY?.trim();
-  const bucket = env.SCALEWAY_BUCKET?.trim();
-  const renseignes = [cle, secret, bucket].filter(Boolean).length;
-
-  if (renseignes === 0) {
-    out.push({
-      variable: "SCALEWAY_*",
-      gravite: production ? "erreur" : "avertissement",
-      message: "non configuré : l'archivage des récaps hebdomadaires répond 503 (`STOCKAGE_NON_CONFIGURE`).",
-    });
+function controlerEmail(env: Environnement, out: Diagnostic[]): void {
+  const cle = env.RESEND_API_KEY?.trim();
+  const expediteur = env.EMAIL_EXPEDITEUR?.trim();
+  if (!cle && !expediteur) {
+    out.push({ variable: "RESEND_API_KEY", gravite: "info", message: "envoi d'e-mails non configuré : les notifications restent consultables dans les espaces, sans e-mail." });
     return;
   }
-  if (renseignes < 3) {
-    out.push({
-      variable: "SCALEWAY_*",
-      gravite: "erreur",
-      message: "configuration partielle : `SCALEWAY_ACCESS_KEY_ID`, `SCALEWAY_SECRET_ACCESS_KEY` et `SCALEWAY_BUCKET` vont ensemble.",
-    });
-  }
-
-  if (cle && estPlaceholder(cle)) {
-    out.push({ variable: "SCALEWAY_ACCESS_KEY_ID", gravite: "erreur", message: "valeur d'exemple." });
-  } else if (cle && !/^SCW[A-Z0-9]{17}$/.test(cle)) {
-    out.push({ variable: "SCALEWAY_ACCESS_KEY_ID", gravite: "avertissement", message: "format inhabituel : une clé Scaleway commence par `SCW` et fait 20 caractères." });
-  }
-  if (secret && estPlaceholder(secret)) {
-    out.push({ variable: "SCALEWAY_SECRET_ACCESS_KEY", gravite: "erreur", message: "valeur d'exemple." });
-  } else if (secret && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(secret)) {
-    out.push({ variable: "SCALEWAY_SECRET_ACCESS_KEY", gravite: "avertissement", message: "format inhabituel : la clé secrète Scaleway est un UUID." });
-  }
-  if (bucket && !nomBucketValide(bucket)) {
-    out.push({
-      variable: "SCALEWAY_BUCKET",
-      gravite: "erreur",
-      message: "nom invalide : 3 à 63 caractères, minuscules, chiffres et tirets simples. Un point casserait le certificat TLS (accès en virtual-host style).",
-    });
-  }
-
-  const region = env.SCALEWAY_REGION?.trim() || "fr-par";
-  if (region !== "fr-par") {
-    out.push({ variable: "SCALEWAY_REGION", gravite: "erreur", message: `${region} : le projet impose \`fr-par\` (archives conservées en France).` });
-  }
-
-  const endpoint = env.SCALEWAY_ENDPOINT?.trim();
-  if (endpoint) {
-    if (!endpoint.startsWith("https://")) {
-      out.push({ variable: "SCALEWAY_ENDPOINT", gravite: "erreur", message: "doit être en HTTPS." });
-    }
-    if (!endpoint.includes(`s3.${region}.scw.cloud`)) {
-      out.push({
-        variable: "SCALEWAY_ENDPOINT",
-        gravite: "erreur",
-        message: `incohérent avec \`SCALEWAY_REGION\` (${region}) : attendu \`https://s3.${region}.scw.cloud\`.`,
-      });
-    }
-    if (bucket && endpoint.includes(`${bucket}.`)) {
-      out.push({ variable: "SCALEWAY_ENDPOINT", gravite: "erreur", message: "ne doit pas contenir le nom du bucket : le SDK le préfixe lui-même." });
-    }
-  }
-
-  const annees = env.ARCHIVE_RETENTION_YEARS?.trim();
-  if (annees !== undefined && annees !== "") {
-    const n = entier(annees);
-    if (n === null || n < 1) {
-      out.push({ variable: "ARCHIVE_RETENTION_YEARS", gravite: "erreur", message: "doit être un entier d'au moins 1." });
-    } else if (n < RETENTION_ANNEES_PROJET) {
-      out.push({
-        variable: "ARCHIVE_RETENTION_YEARS",
-        gravite: "avertissement",
-        message: `${n} an(s), en deçà des ${RETENTION_ANNEES_PROJET} ans retenus par le projet. La rétention Object Lock est irréversible : elle ne pourra pas être rallongée après coup sur les objets déjà déposés.`,
-      });
-    }
-  }
-}
-
-function controlerRetentions(env: Environnement, out: Diagnostic[]): void {
-  const jours = env.RETENTION_POINTAGES_JOURS?.trim();
-  if (jours === undefined || jours === "") return;
-  const n = entier(jours);
-  if (n === null || n < 1) {
-    out.push({ variable: "RETENTION_POINTAGES_JOURS", gravite: "erreur", message: "doit être un entier d'au moins 1." });
+  if (!cle || !expediteur) {
+    out.push({ variable: cle ? "EMAIL_EXPEDITEUR" : "RESEND_API_KEY", gravite: "erreur", message: "`RESEND_API_KEY` et `EMAIL_EXPEDITEUR` vont ensemble : sans l'une des deux, aucun e-mail ne part." });
     return;
   }
-  if (n < 365) {
-    out.push({ variable: "RETENTION_POINTAGES_JOURS", gravite: "avertissement", message: `${n} jours : les pointages seraient purgés avant un an.` });
+  if (estPlaceholder(cle)) {
+    out.push({ variable: "RESEND_API_KEY", gravite: "erreur", message: "valeur d'exemple." });
+  } else if (!cle.startsWith("re_")) {
+    out.push({ variable: "RESEND_API_KEY", gravite: "avertissement", message: "format inhabituel : une clé Resend commence par `re_`." });
   }
-  const annees = entier(env.ARCHIVE_RETENTION_YEARS?.trim() || String(RETENTION_ANNEES_PROJET));
-  if (annees !== null && annees >= 1) {
-    const attendu = Math.round(annees * JOURS_PAR_AN);
-    if (Math.abs(n - attendu) > JOURS_PAR_AN) {
-      out.push({
-        variable: "RETENTION_POINTAGES_JOURS",
-        gravite: "avertissement",
-        message: `${n} jours face à ${annees} an(s) d'archives (≈ ${attendu} jours) : les pointages et les PDF ne disparaîtraient pas en même temps.`,
-      });
-    }
+  const adresse = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+  const nomme = /^[^<>]*<([^<>]+)>$/.exec(expediteur);
+  if (!adresse.test(nomme ? nomme[1]! : expediteur)) {
+    out.push({ variable: "EMAIL_EXPEDITEUR", gravite: "erreur", message: "attendu `Nom <adresse@domaine>` ou `adresse@domaine`, sur un domaine vérifié chez Resend." });
+  }
+  if (!env.NEXT_PUBLIC_APP_URL?.trim()) {
+    out.push({ variable: "NEXT_PUBLIC_APP_URL", gravite: "avertissement", message: "absente : les e-mails partiront sans lien vers l'espace Kipointe." });
   }
 }
 
@@ -333,18 +241,9 @@ function controlerDivers(env: Environnement, production: boolean, out: Diagnosti
     }
   }
 
-  const apk = env.KIOSQUE_APK_URL?.trim();
-  if (apk && !apk.startsWith("https://")) {
-    out.push({ variable: "KIOSQUE_APK_URL", gravite: "erreur", message: "doit être en HTTPS : les tablettes refusent un téléchargement en clair." });
-  }
-  const version = env.KIOSQUE_APK_VERSION?.trim();
-  if (version && !/^\d+\.\d+\.\d+$/.test(version)) {
-    out.push({ variable: "KIOSQUE_APK_VERSION", gravite: "avertissement", message: "format attendu `x.y.z` : les tablettes comparent cette valeur à la leur." });
-  }
-
-  const motDePasse = env.SEED_GERANT_MOT_DE_PASSE?.trim();
-  if (motDePasse && estPlaceholder(motDePasse)) {
-    out.push({ variable: "SEED_GERANT_MOT_DE_PASSE", gravite: "erreur", message: "mot de passe d'exemple : le premier gérant serait créé avec un mot de passe public." });
+  const motDePasse = env.SEED_MOT_DE_PASSE?.trim();
+  if (motDePasse && (estPlaceholder(motDePasse) || motDePasse.length < 10)) {
+    out.push({ variable: "SEED_MOT_DE_PASSE", gravite: "erreur", message: "mot de passe d'exemple ou trop court : le compte éditeur donne accès à tous les clients." });
   }
 }
 
@@ -354,8 +253,7 @@ export function controlerEnvironnement(env: Environnement, options: OptionsContr
   const out: Diagnostic[] = [];
   controlerBase(env, production, out);
   controlerSecrets(env, production, out);
-  controlerStockage(env, production, out);
-  controlerRetentions(env, out);
+  controlerEmail(env, out);
   controlerDivers(env, production, out);
   const ordre: Record<Gravite, number> = { erreur: 0, avertissement: 1, info: 2 };
   return out.sort((a, b) => ordre[a.gravite] - ordre[b.gravite]);

@@ -6,7 +6,6 @@ import {
   controlerEnvironnement,
   masquer,
   masquerUrl,
-  nomBucketValide,
   regionNeon,
   type Diagnostic,
   type Environnement,
@@ -19,15 +18,9 @@ function envValide(): Environnement {
     DATABASE_URL_UNPOOLED: "postgresql://kipointe:motdepasse@ep-essai-1234.eu-central-1.aws.neon.tech/kipointe?sslmode=require",
     SESSION_SECRET: "secret-de-test-Vb7qL2ZmT9xKpR4sD1gN6hW8",
     CRON_SECRET: "cron-de-test-Qm3Xv9Tz1Rb7Ns5Kd2Hp8",
-    SCALEWAY_ACCESS_KEY_ID: "SCWTESTTESTTEST00000",
-    SCALEWAY_SECRET_ACCESS_KEY: "00000000-0000-4000-8000-000000000000",
-    SCALEWAY_BUCKET: "kipointe-archives",
-    SCALEWAY_REGION: "fr-par",
-    SCALEWAY_ENDPOINT: "https://s3.fr-par.scw.cloud",
-    ARCHIVE_RETENTION_YEARS: "5",
-    RETENTION_POINTAGES_JOURS: "1826",
+    RESEND_API_KEY: "re_cle_de_test_0000",
+    EMAIL_EXPEDITEUR: "Kipointe <notifications@exemple.fr>",
     NEXT_PUBLIC_APP_URL: "https://kipointe.exemple.fr",
-    KIOSQUE_APK_VERSION: "1.0.0",
   };
 }
 
@@ -98,67 +91,29 @@ describe("contrôle de l'environnement", () => {
     expect(erreursSur(env, "CRON_SECRET")).toHaveLength(1);
   });
 
-  it("impose la région fr-par pour les archives", () => {
-    const env = { ...envValide(), SCALEWAY_REGION: "nl-ams", SCALEWAY_ENDPOINT: "https://s3.nl-ams.scw.cloud" };
-    expect(erreursSur(env, "SCALEWAY_REGION")).toHaveLength(1);
-  });
-
-  it("détecte un endpoint incohérent avec la région", () => {
-    const env = { ...envValide(), SCALEWAY_ENDPOINT: "https://s3.nl-ams.scw.cloud" };
-    expect(erreursSur(env, "SCALEWAY_ENDPOINT")[0]?.message).toContain("incohérent");
-  });
-
-  it("refuse un endpoint contenant déjà le nom du bucket", () => {
-    const env = { ...envValide(), SCALEWAY_ENDPOINT: "https://kipointe-archives.s3.fr-par.scw.cloud" };
-    expect(erreursSur(env, "SCALEWAY_ENDPOINT")).toHaveLength(1);
-  });
-
-  it("refuse un nom de bucket qui casserait le certificat TLS", () => {
-    const env = { ...envValide(), SCALEWAY_BUCKET: "kipointe.archives" };
-    expect(erreursSur(env, "SCALEWAY_BUCKET")).toHaveLength(1);
-  });
-
-  it("refuse une configuration Scaleway partielle", () => {
+  it("refuse un envoi d'e-mails à moitié configuré", () => {
     const env = envValide();
-    delete env.SCALEWAY_SECRET_ACCESS_KEY;
-    expect(erreursSur(env, "SCALEWAY_*")[0]?.message).toContain("partielle");
+    delete env.EMAIL_EXPEDITEUR;
+    expect(erreursSur(env, "EMAIL_EXPEDITEUR")[0]?.message).toContain("vont ensemble");
+    expect(erreursSur({ ...envValide(), EMAIL_EXPEDITEUR: "pas une adresse" }, "EMAIL_EXPEDITEUR")).toHaveLength(1);
   });
 
-  it("signale l'archivage non configuré selon la cible", () => {
+  it("signale sans bloquer l'absence d'envoi d'e-mails", () => {
     const env = envValide();
-    delete env.SCALEWAY_ACCESS_KEY_ID;
-    delete env.SCALEWAY_SECRET_ACCESS_KEY;
-    delete env.SCALEWAY_BUCKET;
-    expect(erreursSur(env, "SCALEWAY_*")[0]?.message).toContain("503");
-    const local = controlerEnvironnement(env, { production: false });
-    expect(local.filter((d) => d.variable === "SCALEWAY_*" && d.gravite === "erreur")).toHaveLength(0);
-  });
-
-  it("signale une rétention d'archives plus courte que celle du projet", () => {
-    const env = { ...envValide(), ARCHIVE_RETENTION_YEARS: "2", RETENTION_POINTAGES_JOURS: "731" };
+    delete env.RESEND_API_KEY;
+    delete env.EMAIL_EXPEDITEUR;
     const d = controlerEnvironnement(env, { production: true });
-    expect(d.some((x) => x.variable === "ARCHIVE_RETENTION_YEARS" && x.gravite === "avertissement")).toBe(true);
     expect(compter(d, "erreur")).toBe(0);
+    expect(d.some((x) => x.variable === "RESEND_API_KEY" && x.gravite === "info")).toBe(true);
   });
 
-  it("signale des durées de purge et d'archivage qui divergent", () => {
-    const env = { ...envValide(), RETENTION_POINTAGES_JOURS: "365" };
-    const d = controlerEnvironnement(env, { production: true });
-    expect(d.filter((x) => x.variable === "RETENTION_POINTAGES_JOURS" && x.gravite === "avertissement").length).toBeGreaterThan(0);
-  });
-
-  it("refuse une durée de rétention non numérique", () => {
-    expect(erreursSur({ ...envValide(), ARCHIVE_RETENTION_YEARS: "cinq" }, "ARCHIVE_RETENTION_YEARS")).toHaveLength(1);
-    expect(erreursSur({ ...envValide(), RETENTION_POINTAGES_JOURS: "0" }, "RETENTION_POINTAGES_JOURS")).toHaveLength(1);
-  });
-
-  it("refuse une URL d'APK en clair et un driver inconnu", () => {
-    expect(erreursSur({ ...envValide(), KIOSQUE_APK_URL: "http://exemple.fr/k.apk" }, "KIOSQUE_APK_URL")).toHaveLength(1);
+  it("refuse un mot de passe éditeur d'exemple et un driver inconnu", () => {
+    expect(erreursSur({ ...envValide(), SEED_MOT_DE_PASSE: "changez-moi-vite" }, "SEED_MOT_DE_PASSE")).toHaveLength(1);
     expect(erreursSur({ ...envValide(), DATABASE_DRIVER: "mysql" }, "DATABASE_DRIVER")).toHaveLength(1);
   });
 
   it("classe les erreurs avant les avertissements", () => {
-    const env = { ...envValide(), SCALEWAY_REGION: "nl-ams", KIOSQUE_APK_VERSION: "1.0" };
+    const env = { ...envValide(), DATABASE_DRIVER: "mysql", NEXT_PUBLIC_APP_URL: "https://kipointe.exemple.fr/" };
     const d = controlerEnvironnement(env, { production: true });
     const premierAvertissement = d.findIndex((x) => x.gravite === "avertissement");
     const derniereErreur = d.map((x) => x.gravite).lastIndexOf("erreur");
@@ -201,15 +156,5 @@ describe("utilitaires", () => {
   it("extrait la région d'un hôte Neon", () => {
     expect(regionNeon("postgresql://u:p@ep-essai-1234-pooler.eu-central-1.aws.neon.tech/db")).toBe("eu-central-1");
     expect(regionNeon("postgres://localhost/kipointe")).toBeNull();
-  });
-
-  it("valide les noms de bucket compatibles virtual-host style", () => {
-    expect(nomBucketValide("kipointe-archives")).toBe(true);
-    expect(nomBucketValide("kipointe.archives")).toBe(false);
-    expect(nomBucketValide("Kipointe")).toBe(false);
-    expect(nomBucketValide("ki")).toBe(false);
-    expect(nomBucketValide("-kipointe")).toBe(false);
-    expect(nomBucketValide("kipointe--archives")).toBe(false);
-    expect(nomBucketValide("a".repeat(64))).toBe(false);
   });
 });

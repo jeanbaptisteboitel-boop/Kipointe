@@ -17,14 +17,14 @@ export function FormulaireConnexion() {
     setErreur(null);
     setEnCours(true);
     try {
-      const r = await appelApi<{ utilisateur: { role: string } }>("/api/auth/connexion", {
+      const r = await appelApi<{ suite: string }>("/api/auth/connexion", {
         method: "POST",
         json: { email, mot_de_passe: motDePasse },
       });
-      router.replace(r.utilisateur.role === "GERANT" ? "/gerant" : "/salarie");
+      router.replace(r.suite);
       router.refresh();
     } catch (err) {
-      setErreur(err instanceof ErreurApi ? "Adresse e-mail ou mot de passe incorrect." : "Connexion impossible.");
+      setErreur(err instanceof ErreurApi ? err.message : "Connexion impossible.");
     } finally {
       setEnCours(false);
     }

@@ -5,7 +5,7 @@ import { and, eq, gt } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getDb, type Tx } from "@/db";
-import { session, utilisateur, type Utilisateur } from "@/db/schema";
+import { organisation, session, utilisateur, type Utilisateur } from "@/db/schema";
 import { withBypass } from "@/db/tenant";
 import { hacherTokenSession, tokenAleatoire } from "@/lib/crypto";
 import { HttpError } from "@/lib/http";
@@ -15,7 +15,7 @@ const DUREE_SESSION_MS = 30 * 24 * 3600 * 1000;
 
 export type UtilisateurConnecte = Pick<
   Utilisateur,
-  "id" | "organisationId" | "email" | "nom" | "prenom" | "role" | "salarieId"
+  "id" | "organisationId" | "email" | "nom" | "prenom" | "role" | "salarieId" | "motDePasseProvisoire"
 >;
 
 export async function creerSession(tx: Tx, utilisateurId: string): Promise<{ token: string; expireLe: Date }> {
@@ -47,7 +47,7 @@ export async function supprimerSession(): Promise<void> {
   store.delete(COOKIE_SESSION);
 }
 
-/** Utilisateur connecté (ou null). Lecture seule : utilisable dans les Server Components. */
+/** Utilisateur connecté (ou null). Un compte désactivé ou une organisation suspendue n'ont plus de session. */
 export async function utilisateurCourant(): Promise<UtilisateurConnecte | null> {
   const store = await cookies();
   const token = store.get(COOKIE_SESSION)?.value;
@@ -63,39 +63,53 @@ export async function utilisateurCourant(): Promise<UtilisateurConnecte | null> 
         prenom: utilisateur.prenom,
         role: utilisateur.role,
         salarieId: utilisateur.salarieId,
+        motDePasseProvisoire: utilisateur.motDePasseProvisoire,
         actif: utilisateur.actif,
+        orgActive: organisation.actif,
       })
       .from(session)
       .innerJoin(utilisateur, eq(session.utilisateurId, utilisateur.id))
+      .innerJoin(organisation, eq(utilisateur.organisationId, organisation.id))
       .where(and(eq(session.tokenHash, tokenHash), gt(session.expireLe, new Date())))
       .limit(1);
     const u = rows[0];
-    if (!u || !u.actif) return null;
-    const { actif: _actif, ...reste } = u;
+    if (!u || !u.actif || !u.orgActive) return null;
+    const { actif: _actif, orgActive: _orgActive, ...reste } = u;
     return reste;
   });
 }
 
-/** Pages gérant : redirige vers la connexion si nécessaire. */
-export async function exigerGerant(): Promise<UtilisateurConnecte> {
+/** Espace d'arrivée d'un utilisateur selon son rôle. */
+export function accueilDe(u: Pick<UtilisateurConnecte, "role">): string {
+  if (u.role === "PLATEFORME") return "/plateforme";
+  return u.role === "ADMIN" ? "/admin" : "/salarie";
+}
+
+async function exigerPage(): Promise<UtilisateurConnecte> {
   const u = await utilisateurCourant();
   if (!u) redirect("/connexion");
-  if (u.role !== "GERANT") redirect("/salarie");
+  if (u.motDePasseProvisoire) redirect("/compte");
   return u;
 }
 
-/** Pages salarié : compte SALARIE ou GERANT. */
-export async function exigerConnecte(): Promise<UtilisateurConnecte> {
-  const u = await utilisateurCourant();
-  if (!u) redirect("/connexion");
+/** Pages de l'administrateur de l'entreprise cliente. */
+export async function exigerAdmin(): Promise<UtilisateurConnecte> {
+  const u = await exigerPage();
+  if (u.role !== "ADMIN") redirect(accueilDe(u));
   return u;
 }
 
-/** Routes API admin. */
-export async function exigerGerantApi(): Promise<UtilisateurConnecte> {
-  const u = await utilisateurCourant();
-  if (!u) throw new HttpError(401, "NON_CONNECTE");
-  if (u.role !== "GERANT") throw new HttpError(403, "ROLE_INSUFFISANT");
+/** Pages de l'espace salarié : compte rattaché à une fiche salarié (un administrateur peut l'être aussi). */
+export async function exigerSalarie(): Promise<UtilisateurConnecte & { salarieId: string }> {
+  const u = await exigerPage();
+  if (u.role === "PLATEFORME" || !u.salarieId) redirect(accueilDe(u));
+  return u as UtilisateurConnecte & { salarieId: string };
+}
+
+/** Pages de l'éditeur (gestion des organisations clientes). */
+export async function exigerPlateforme(): Promise<UtilisateurConnecte> {
+  const u = await exigerPage();
+  if (u.role !== "PLATEFORME") redirect(accueilDe(u));
   return u;
 }
 

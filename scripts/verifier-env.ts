@@ -20,15 +20,9 @@ const RECAPITULATIF: { cle: string; affichage: "secret" | "url" | "clair" }[] = 
   { cle: "DATABASE_URL_UNPOOLED", affichage: "url" },
   { cle: "SESSION_SECRET", affichage: "secret" },
   { cle: "CRON_SECRET", affichage: "secret" },
-  { cle: "SCALEWAY_ACCESS_KEY_ID", affichage: "secret" },
-  { cle: "SCALEWAY_SECRET_ACCESS_KEY", affichage: "secret" },
-  { cle: "SCALEWAY_BUCKET", affichage: "clair" },
-  { cle: "SCALEWAY_REGION", affichage: "clair" },
-  { cle: "SCALEWAY_ENDPOINT", affichage: "clair" },
-  { cle: "ARCHIVE_RETENTION_YEARS", affichage: "clair" },
-  { cle: "RETENTION_POINTAGES_JOURS", affichage: "clair" },
   { cle: "NEXT_PUBLIC_APP_URL", affichage: "clair" },
-  { cle: "KIOSQUE_APK_VERSION", affichage: "clair" },
+  { cle: "RESEND_API_KEY", affichage: "secret" },
+  { cle: "EMAIL_EXPEDITEUR", affichage: "clair" },
 ];
 
 function afficher(valeur: string, affichage: "secret" | "url" | "clair"): string {
