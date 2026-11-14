@@ -6,6 +6,7 @@ import {
   controlerEnvironnement,
   masquer,
   masquerUrl,
+  nomBucketValide,
   regionNeon,
   type Diagnostic,
   type Environnement,
@@ -18,6 +19,9 @@ function envValide(): Environnement {
     DATABASE_URL_UNPOOLED: "postgresql://kipointe:motdepasse@ep-essai-1234.eu-central-1.aws.neon.tech/kipointe?sslmode=require",
     SESSION_SECRET: "secret-de-test-Vb7qL2ZmT9xKpR4sD1gN6hW8",
     CRON_SECRET: "cron-de-test-Qm3Xv9Tz1Rb7Ns5Kd2Hp8",
+    SCALEWAY_ACCESS_KEY_ID: "SCWTESTTESTTEST00000",
+    SCALEWAY_SECRET_ACCESS_KEY: "00000000-0000-4000-8000-000000000000",
+    SCALEWAY_BUCKET: "kipointe-justificatifs",
     RESEND_API_KEY: "re_cle_de_test_0000",
     EMAIL_EXPEDITEUR: "Kipointe <notifications@exemple.fr>",
     NEXT_PUBLIC_APP_URL: "https://kipointe.exemple.fr",
@@ -89,6 +93,30 @@ describe("contrôle de l'environnement", () => {
     const env = envValide();
     env.CRON_SECRET = env.SESSION_SECRET;
     expect(erreursSur(env, "CRON_SECRET")).toHaveLength(1);
+  });
+
+  it("refuse un bucket à moitié configuré, hors de France ou mal nommé", () => {
+    const env = envValide();
+    delete env.SCALEWAY_SECRET_ACCESS_KEY;
+    expect(erreursSur(env, "SCALEWAY_*")[0]?.message).toContain("partielle");
+    expect(erreursSur({ ...envValide(), SCALEWAY_REGION: "nl-ams" }, "SCALEWAY_REGION")).toHaveLength(1);
+    expect(erreursSur({ ...envValide(), SCALEWAY_ENDPOINT: "https://s3.nl-ams.scw.cloud" }, "SCALEWAY_ENDPOINT")).toHaveLength(1);
+    expect(erreursSur({ ...envValide(), SCALEWAY_BUCKET: "kipointe.justificatifs" }, "SCALEWAY_BUCKET")).toHaveLength(1);
+    expect(erreursSur({ ...envValide(), SCALEWAY_PATH_STYLE: "1" }, "SCALEWAY_PATH_STYLE")).toHaveLength(1);
+    expect(nomBucketValide("kipointe-justificatifs")).toBe(true);
+    expect(nomBucketValide("Kipointe")).toBe(false);
+  });
+
+  it("exige le bucket en production, et l'adresse du service avec lui", () => {
+    const sans = envValide();
+    delete sans.SCALEWAY_ACCESS_KEY_ID;
+    delete sans.SCALEWAY_SECRET_ACCESS_KEY;
+    delete sans.SCALEWAY_BUCKET;
+    expect(erreursSur(sans, "SCALEWAY_*")[0]?.message).toContain("justificatif");
+    expect(controlerEnvironnement(sans, { production: false }).filter((d) => d.gravite === "erreur")).toHaveLength(0);
+    const sansUrl = envValide();
+    delete sansUrl.NEXT_PUBLIC_APP_URL;
+    expect(erreursSur(sansUrl, "NEXT_PUBLIC_APP_URL")[0]?.message).toContain("origine");
   });
 
   it("refuse un envoi d'e-mails à moitié configuré", () => {

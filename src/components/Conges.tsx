@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { deciderDemande, deposerUnJustificatif, enregistrerConge, retirerUnJustificatif, supprimerDemande } from "@/app/actions/conges";
+import { deciderDemande, confirmerDepotJustificatif, enregistrerConge, preparerDepotJustificatif, retirerUnJustificatif, supprimerDemande } from "@/app/actions/conges";
 import { Messages, useAction } from "@/components/client";
 import { PastilleConge } from "@/components/ui";
 import type { CongeAbsence, TypeConge } from "@/db/schema";
@@ -11,7 +11,25 @@ import { frDate } from "@/lib/temps/zone";
 
 export type CongeAffiche = CongeAbsence & { nomSalarie?: string; justificatifs: JustificatifResume[] };
 
-const TAILLE_MAX = 4 * 1024 * 1024;
+const TAILLE_MAX = 25 * 1024 * 1024;
+
+/**
+ * Dépose un fichier sur une absence : annonce au serveur, envoi DIRECT au bucket, vérification.
+ * Rend null si le justificatif est enregistré, sinon le message d'erreur.
+ */
+async function deposer(congeId: string, fichier: File): Promise<string | null> {
+  if (fichier.size > TAILLE_MAX) return "Fichier trop volumineux : 25 Mo au plus.";
+  const p = await preparerDepotJustificatif({ congeId, nom: fichier.name, taille: fichier.size, type: fichier.type });
+  if (!p.ok) return p.erreur;
+  try {
+    const r = await fetch(p.url, { method: "PUT", headers: { "Content-Type": p.type }, body: fichier });
+    if (!r.ok) return "L'envoi du fichier a échoué : réessayez.";
+  } catch {
+    return "L'envoi du fichier a échoué : vérifiez votre connexion et réessayez.";
+  }
+  const c = await confirmerDepotJustificatif(p.id);
+  return c.ok ? c.refus : c.erreur;
+}
 const FORMATS = "application/pdf,image/jpeg,image/png";
 
 /** Justificatifs d'une absence : liens de consultation, retrait, dépôt d'un nouveau fichier. */
@@ -52,11 +70,10 @@ function Justificatifs({ conge, peutDeposer }: { conge: CongeAffiche; peutDepose
               const fichier = e.target.files?.[0];
               e.target.value = "";
               if (!fichier) return;
-              if (fichier.size > TAILLE_MAX) return a.setErreur("Fichier trop volumineux : 4 Mo au plus.");
-              const donnees = new FormData();
-              donnees.set("congeId", conge.id);
-              donnees.set("fichier", fichier);
-              a.lancer(() => deposerUnJustificatif(donnees));
+              a.lancer(async () => {
+                const erreur = await deposer(conge.id, fichier);
+                return erreur ? { ok: false as const, erreur } : { ok: true as const };
+              });
             }}
           />
         </label>
@@ -177,18 +194,14 @@ export function FormulaireConge({ mode, salarieId, salaries }: { mode: "admin" |
       style={{ background: "var(--bg-portal)", border: "1px solid var(--line-portal)" }}
       onSubmit={(e) => {
         e.preventDefault();
-        if (fichier && fichier.size > TAILLE_MAX) return a.setErreur("Justificatif trop volumineux : 4 Mo au plus.");
+        if (fichier && fichier.size > TAILLE_MAX) return a.setErreur("Justificatif trop volumineux : 25 Mo au plus.");
         a.lancer(
           async () => {
             const r = await enregistrerConge({ salarieId: qui, type, dateDebut: debut, dateFin: fin || debut, demiJourDebut: aprem ? "APREM" : null, demiJourFin: matin ? "MATIN" : null, motif });
             if (!r.ok) return r;
             if (!fichier) return { ...r, depot: null as string | null };
-            const donnees = new FormData();
-            donnees.set("congeId", r.id);
-            donnees.set("fichier", fichier);
-            const d = await deposerUnJustificatif(donnees);
             // L'absence est enregistrée même si le fichier est refusé : on le dit, il pourra être rejoint.
-            return { ...r, depot: d.ok ? null : d.erreur };
+            return { ...r, depot: await deposer(r.id, fichier) };
           },
           (r) => {
             setOuvert(false);
@@ -250,7 +263,7 @@ export function FormulaireConge({ mode, salarieId, salaries }: { mode: "admin" |
           <span className="label">Justificatif (facultatif)</span>
           <input type="file" accept={FORMATS} className="text-sm" onChange={(e) => setFichier(e.target.files?.[0] ?? null)} />
           <span className="mt-1 block text-[12px]" style={{ color: "var(--muted)" }}>
-            PDF ou photo (JPEG, PNG), 4 Mo au plus. Pour un arrêt de travail, déposez le volet destiné à l'employeur (volet 3), qui ne porte aucune information médicale.
+            PDF ou photo (JPEG, PNG), 25 Mo au plus. Pour un arrêt de travail, déposez le volet destiné à l'employeur (volet 3), qui ne porte aucune information médicale.
           </span>
         </label>
       </div>

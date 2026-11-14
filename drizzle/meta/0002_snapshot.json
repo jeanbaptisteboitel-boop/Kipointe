@@ -1,5 +1,5 @@
 {
-  "id": "0f309a4d-ab0c-49d3-99ba-b4b26188317d",
+  "id": "7ade9120-00bc-4cfa-afa6-9f931e2b8b20",
   "prevId": "34ade09c-622f-4ad8-8f35-8050d2c2de10",
   "version": "7",
   "dialect": "postgresql",
@@ -566,11 +566,17 @@
           "primaryKey": false,
           "notNull": true
         },
-        "contenu": {
-          "name": "contenu",
-          "type": "bytea",
+        "cle": {
+          "name": "cle",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "confirme_le": {
+          "name": "confirme_le",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         },
         "depose_par": {
           "name": "depose_par",

@@ -14,7 +14,6 @@
  */
 import {
   boolean,
-  customType,
   date,
   doublePrecision,
   index,
@@ -265,16 +264,11 @@ export const congeAbsence = pgTable(
   (t) => [index("conge_org_statut_idx").on(t.organisationId, t.statut), index("conge_salarie_idx").on(t.salarieId, t.dateDebut)],
 );
 
-/** Colonne binaire PostgreSQL (bytea). */
-const bytea = customType<{ data: Buffer; driverData: Buffer }>({
-  dataType: () => "bytea",
-  fromDriver: (v) => Buffer.from(v),
-});
-
 /**
- * Justificatif d'une absence (arrêt de travail, acte, convocation). Le fichier est conservé en
- * base, dans l'organisation du salarié : il suit le même cloisonnement que le reste, n'est servi
- * qu'au salarié concerné et aux administrateurs, et disparaît avec l'absence.
+ * Justificatif d'une absence (arrêt de travail, acte, convocation). Le fichier est dans le bucket
+ * Scaleway (privé), sous `cle` ; cette ligne en porte les droits : il n'est servi qu'au salarié
+ * concerné et aux administrateurs de son entreprise, et disparaît avec l'absence.
+ * `confirmeLe` nul : envoi annoncé mais pas encore vérifié (le fichier n'est pas consultable).
  */
 export const justificatif = pgTable(
   "justificatif",
@@ -289,7 +283,8 @@ export const justificatif = pgTable(
     nom: text("nom").notNull(),
     typeMime: text("type_mime").notNull(),
     taille: integer("taille").notNull(),
-    contenu: bytea("contenu").notNull(),
+    cle: text("cle").notNull(),
+    confirmeLe: timestamp("confirme_le", { withTimezone: true, mode: "date" }),
     deposePar: uuid("depose_par").references(() => utilisateur.id, { onDelete: "set null" }),
     ...cree,
   },

@@ -21,7 +21,7 @@ const SECRETS_GENERES: Record<string, () => string> = {
 };
 
 /** Fragments de `.env.example` : une valeur qui les contient reste à renseigner. */
-const GABARITS = ["changez-moi", "USER:PASSWORD", "re_xxxxxxxx", "ep-xxxx", "kipointe.vercel.app"];
+const GABARITS = ["changez-moi", "USER:PASSWORD", "re_xxxxxxxx", "SCWXXXX", "xxxxxxxx-xxxx", "ep-xxxx", "kipointe.vercel.app"];
 
 function estGabarit(valeur: string): boolean {
   if (valeur.trim() === "") return true;
@@ -119,6 +119,7 @@ function main(): void {
     for (const cle of aSaisir) console.log(`        ${cle}`);
     console.log("");
     console.log("        Neon     → tableau de bord du projet, onglet « Connection details »");
+    console.log("        Scaleway → console, IAM → application « kipointe » → clé API");
     console.log("        URL      → l'adresse publique du service (domaine Vercel ou le vôtre)");
   }
   console.log("");

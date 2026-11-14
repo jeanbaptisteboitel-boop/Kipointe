@@ -2,10 +2,12 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { organisation } from "@/db/schema";
 import { withBypass } from "@/db/tenant";
+import { purgerDepotsAbandonnes } from "@/lib/conges/justificatifs";
 import { egalConstant } from "@/lib/crypto";
 import { HttpError, extraireBearer, json, route } from "@/lib/http";
 import { envoyerEmailsEnAttente } from "@/lib/notifications/email";
 import { executerQuotidien } from "@/lib/notifications/quotidien";
+import { stockage } from "@/lib/stockage";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -24,5 +26,8 @@ export const GET = route(async (req) => {
   const organisations = await withBypass(db, (tx) => tx.select({ id: organisation.id }).from(organisation).where(eq(organisation.actif, true)));
   let emails = 0;
   for (const o of organisations) emails += await envoyerEmailsEnAttente(db, o.id);
-  return json({ ...bilan, emails });
+  // Envois de justificatifs annoncés mais jamais confirmés : lignes et fichiers supprimés.
+  const abandonnes = await withBypass(db, (tx) => purgerDepotsAbandonnes(tx, new Date()));
+  if (abandonnes.length) await stockage()?.supprimer(abandonnes);
+  return json({ ...bilan, emails, depotsAbandonnes: abandonnes.length });
 });

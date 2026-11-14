@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { ErreurMetier, actionAdmin, actionConnecte } from "@/lib/actions";
-import { deposerJustificatif, retirerJustificatif } from "@/lib/conges/justificatifs";
+import { ErreurRefus, clesDeLAbsence, confirmerDepot, preparerDepot, retirerJustificatif } from "@/lib/conges/justificatifs";
 import { creerConge, deciderConge, supprimerConge, type SaisieConge } from "@/lib/conges/service";
 import { journaliserAcces } from "@/lib/journal";
+import { stockage } from "@/lib/stockage";
 
 /** Demande ou déclaration d'absence. Un salarié ne saisit que pour lui-même ; l'administrateur pour tous. */
 export async function enregistrerConge(saisie: SaisieConge) {
@@ -30,29 +31,48 @@ export async function deciderDemande(p: { id: string; statut: "ACCEPTEE" | "REFU
 /** Annulation d'une demande en attente par son auteur, ou suppression par l'administrateur. */
 export async function supprimerDemande(id: string) {
   return actionConnecte(async (tx, u) => {
+    const cles = /^[0-9a-f-]{36}$/i.test(id) ? await clesDeLAbsence(tx, id) : [];
     const c = await supprimerConge(tx, { id, parAdmin: u.role === "ADMIN", salarieId: u.salarieId });
+    // Les fichiers de l'absence partent avec elle (les lignes, elles, suivent par cascade).
+    if (cles.length) await stockage()?.supprimer(cles);
     if (u.role === "ADMIN") await journaliserAcces(tx, { organisationId: u.organisationId, utilisateurId: u.id, salarieId: c.salarieId, action: "ABSENCE_SUPPRIMEE", detail: { type: c.type, du: c.dateDebut, au: c.dateFin } });
     revalidatePath("/", "layout");
   });
 }
 
-/** Dépôt d'un justificatif sur une absence : `FormData` avec `congeId` et `fichier`. */
-export async function deposerUnJustificatif(donnees: FormData) {
+function exigerStockage() {
+  const s = stockage();
+  if (!s) throw new ErreurMetier("Le dépôt de justificatifs n'est pas encore configuré sur ce service : remettez le document à votre employeur.");
+  return s;
+}
+
+/** Temps 1 du dépôt : annonce le fichier, rend l'URL à laquelle le navigateur l'envoie directement. */
+export async function preparerDepotJustificatif(p: { congeId: string; nom: string; taille: number; type: string }) {
   return actionConnecte(async (tx, u) => {
-    const fichier = donnees.get("fichier");
-    const congeId = String(donnees.get("congeId") ?? "");
-    if (!(fichier instanceof File)) throw new ErreurMetier("Choisissez un fichier.");
-    const parAdmin = u.role === "ADMIN";
-    const j = await deposerJustificatif(tx, { organisationId: u.organisationId, congeId, auteurId: u.id, parAdmin, salarieId: u.salarieId, nom: fichier.name, octets: new Uint8Array(await fichier.arrayBuffer()) });
+    const d = await preparerDepot(tx, exigerStockage(), { organisationId: u.organisationId, congeId: p.congeId, auteurId: u.id, parAdmin: u.role === "ADMIN", salarieId: u.salarieId, nom: String(p.nom ?? ""), taille: Number(p.taille), typeAnnonce: String(p.type ?? "") });
+    return { id: d.id, url: d.url, type: d.typeMime };
+  });
+}
+
+/** Temps 3 : le serveur vérifie le fichier déposé. `refus` : il a été écarté (format, taille, absent). */
+export async function confirmerDepotJustificatif(id: string) {
+  return actionConnecte(async (tx, u) => {
+    try {
+      await confirmerDepot(tx, exigerStockage(), { organisationId: u.organisationId, id, parAdmin: u.role === "ADMIN", salarieId: u.salarieId });
+    } catch (e) {
+      // Le fichier écarté est déjà supprimé : la transaction doit être validée, pas annulée.
+      if (e instanceof ErreurRefus) return { refus: e.message };
+      throw e;
+    }
     revalidatePath("/", "layout");
-    return { nom: j.nom };
+    return { refus: null as string | null };
   });
 }
 
 export async function retirerUnJustificatif(id: string) {
   return actionConnecte(async (tx, u) => {
     const parAdmin = u.role === "ADMIN";
-    const j = await retirerJustificatif(tx, id, { parAdmin, salarieId: u.salarieId });
+    const j = await retirerJustificatif(tx, exigerStockage(), id, { parAdmin, salarieId: u.salarieId });
     if (parAdmin) await journaliserAcces(tx, { organisationId: u.organisationId, utilisateurId: u.id, salarieId: j.salarieId, action: "JUSTIFICATIF_RETIRE", detail: { nom: j.nom } });
     revalidatePath("/", "layout");
   });

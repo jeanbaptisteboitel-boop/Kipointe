@@ -18,9 +18,13 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "env:preparer": "tsx scripts/preparer-env.ts",
-    "env:verifier": "tsx scripts/verifier-env.ts"
+    "env:verifier": "tsx scripts/verifier-env.ts",
+    "scaleway:setup": "tsx scripts/scaleway-bucket-setup.ts",
+    "scaleway:verifier": "tsx scripts/scaleway-bucket-setup.ts --verifier"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1169.0",
+    "@aws-sdk/s3-request-presigner": "^3.1169.0",
     "@date-fns/tz": "^1.5.0",
     "@neondatabase/serverless": "^1.1.0",
     "@node-rs/argon2": "^2.2.1",

@@ -25,9 +25,9 @@ command -v vercel >/dev/null 2>&1 || {
 [ -f "$fichier" ] || { echo "$fichier introuvable — lancez d'abord : npm run env:preparer" >&2; exit 1; }
 
 # Variables qui restent sur le poste : amorçage de la base et bascules de développement.
-locales=" SEED_RAISON_SOCIALE SEED_EMAIL SEED_MOT_DE_PASSE DATABASE_DRIVER SKIP_MIGRATIONS "
+locales=" SEED_RAISON_SOCIALE SEED_EMAIL SEED_MOT_DE_PASSE DATABASE_DRIVER SKIP_MIGRATIONS SCALEWAY_PATH_STYLE "
 # Fragments de .env.example : une valeur qui en contient un n'est pas renseignée.
-gabarits='changez-moi|USER:PASSWORD|re_xxxxxxxx|ep-xxxx|kipointe\.vercel\.app'
+gabarits='changez-moi|USER:PASSWORD|re_xxxxxxxx|SCWXXXX|xxxxxxxx-xxxx|ep-xxxx|kipointe\.vercel\.app'
 
 envoyees=0
 ignorees=0

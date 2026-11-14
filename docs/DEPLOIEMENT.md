@@ -1,14 +1,15 @@
-# Déploiement — Vercel (cdg1) + Neon (EU)
+# Déploiement — Vercel (cdg1) + Neon (EU) + Scaleway (fr-par)
 
 Toutes les données restent dans l'Union européenne : fonctions Vercel à Paris (`cdg1`), base Neon
-en région EU. Aucun autre service n'est requis ; l'envoi d'e-mails (Resend) est facultatif.
+en région EU, justificatifs des salariés dans un bucket Scaleway à Paris (`fr-par`). L'envoi
+d'e-mails (Resend) est facultatif.
 
 ## 1. Préparer
 
 ```bash
 npm install
 npm run env:preparer          # crée .env, tire SESSION_SECRET et CRON_SECRET au hasard
-#   → renseigner dans .env : les deux chaînes Neon et l'URL publique
+#   → renseigner dans .env : les deux chaînes Neon, la clé Scaleway et l'URL publique
 npm run env:verifier          # contrôle la cohérence de l'ensemble
 ```
 
@@ -29,7 +30,30 @@ npm run db:seed -- --demo     # facultatif : un client de démonstration
 Le compte éditeur ouvre l'espace **Clients**, d'où chaque entreprise cliente est créée avec son
 administrateur.
 
-## 3. Vercel
+## 3. Scaleway — bucket des justificatifs
+
+Les salariés y déposent leurs justificatifs (arrêt de travail, acte de naissance…), jusqu'à 25 Mo.
+Le navigateur envoie le fichier **directement au bucket** par une URL signée à durée courte : il
+ne traverse pas Vercel, qui plafonne une requête à 4,5 Mo.
+
+1. Console Scaleway → *IAM* → application « kipointe », politique `ObjectStorageFullAccess` (ou
+   limitée au bucket), puis une clé API → `SCALEWAY_ACCESS_KEY_ID` / `SCALEWAY_SECRET_ACCESS_KEY`.
+2. Choisir `SCALEWAY_BUCKET` (nom global à tout Scaleway : minuscules, chiffres, tirets).
+3. `NEXT_PUBLIC_APP_URL` doit être l'adresse définitive du service, puis :
+
+```bash
+npm run scaleway:setup       # crée le bucket, le ferme au public, pose la règle CORS
+npm run scaleway:verifier    # audit en lecture seule
+```
+
+- **Privé** : aucun accès public ; lecture par URL signée d'une minute, après contrôle d'accès.
+- **Sans Object Lock** : un justificatif est supprimé avec l'absence. Le script refuse un bucket
+  verrouillé (ne réutilisez pas celui d'une version antérieure).
+- **CORS** : seule l'adresse du service peut envoyer un fichier. Si l'adresse change, ou pour
+  autoriser un aperçu Vercel (`SCALEWAY_CORS_ORIGINES`), relancez `scaleway:setup` — sinon l'envoi
+  échoue dans le navigateur.
+
+## 4. Vercel
 
 ```bash
 ./scripts/vercel-env-push.sh production
@@ -41,13 +65,15 @@ administrateur.
 | `DATABASE_URL_UNPOOLED` | Neon, chaîne directe (migrations au build) | oui |
 | `SESSION_SECRET` | signe les sessions | oui |
 | `CRON_SECRET` | tâche quotidienne. **Absent : plus aucune notification, sans alerte** | oui |
-| `NEXT_PUBLIC_APP_URL` | URL publique (liens des e-mails) | recommandé |
+| `NEXT_PUBLIC_APP_URL` | URL publique : liens des e-mails, origine autorisée à envoyer au bucket | oui |
+| `SCALEWAY_ACCESS_KEY_ID`, `SCALEWAY_SECRET_ACCESS_KEY`, `SCALEWAY_BUCKET` | bucket des justificatifs | oui |
+| `SCALEWAY_REGION` | `fr-par` | défaut `fr-par` |
 | `RESEND_API_KEY`, `EMAIL_EXPEDITEUR` | envoi des notifications par e-mail | non |
 
 `vercel.json` fixe la région `cdg1` et la tâche quotidienne `/api/cron/quotidien` à 03:00 UTC
 (point de la veille : absences, oublis de badge, écarts au contrat, pointeuses silencieuses).
 
-## 4. Mettre un client en service
+## 5. Mettre un client en service
 
 1. Espace éditeur → **Nouveau client** : remettre à l'administrateur ses identifiants provisoires.
 2. L'administrateur règle le **planning de l'entreprise** (Paramètres), crée ses **salariés** avec
@@ -57,7 +83,7 @@ administrateur.
 
 Détail du protocole et de ses limites : [POINTEUSE.md](POINTEUSE.md).
 
-## 5. Développement local
+## 6. Développement local
 
 ```bash
 createdb kipointe

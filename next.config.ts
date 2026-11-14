@@ -2,8 +2,6 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // Dépôt de justificatifs (4 Mo au plus) par action serveur : la limite par défaut est de 1 Mo.
-  experimental: { serverActions: { bodySizeLimit: "5mb" } },
   // Modules natifs / lourds à laisser hors du bundle serveur (Turbopack)
   serverExternalPackages: ["@node-rs/argon2", "@neondatabase/serverless", "pg", "ws"],
   async headers() {

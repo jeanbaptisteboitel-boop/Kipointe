@@ -21,6 +21,10 @@ const RECAPITULATIF: { cle: string; affichage: "secret" | "url" | "clair" }[] = 
   { cle: "SESSION_SECRET", affichage: "secret" },
   { cle: "CRON_SECRET", affichage: "secret" },
   { cle: "NEXT_PUBLIC_APP_URL", affichage: "clair" },
+  { cle: "SCALEWAY_ACCESS_KEY_ID", affichage: "secret" },
+  { cle: "SCALEWAY_SECRET_ACCESS_KEY", affichage: "secret" },
+  { cle: "SCALEWAY_BUCKET", affichage: "clair" },
+  { cle: "SCALEWAY_REGION", affichage: "clair" },
   { cle: "RESEND_API_KEY", affichage: "secret" },
   { cle: "EMAIL_EXPEDITEUR", affichage: "clair" },
 ];

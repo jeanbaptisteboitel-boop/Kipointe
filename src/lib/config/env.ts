@@ -6,7 +6,8 @@
  *  - `DATABASE_URL` pointant sur l'endpoint direct → épuisement des connexions sur Vercel ;
  *  - `DATABASE_URL_UNPOOLED` pointant sur le pooler → migrations en échec au build ;
  *  - base Neon hors UE → données personnelles de salariés sorties de l'Union ;
- *  - envoi d'e-mails à moitié configuré → notifications jamais envoyées, sans erreur visible.
+ *  - envoi d'e-mails à moitié configuré → notifications jamais envoyées, sans erreur visible ;
+ *  - bucket des justificatifs à moitié configuré, ou sans l'adresse du service → dépôts refusés.
  *
  * Fonctions pures, sans accès disque ni réseau : testées dans `tests/env.test.ts`
  * et appelées par `scripts/verifier-env.ts`.
@@ -47,6 +48,8 @@ const PLACEHOLDERS = [
   "changez-moi-32-octets-aleatoires-minimum",
   "USER:PASSWORD",
   "re_xxxxxxxx",
+  "SCWXXXXXXXXXXXXXXXXX",
+  "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
 ];
 
 const LONGUEUR_MINI_SESSION_SECRET = 32;
@@ -195,6 +198,46 @@ function controlerSecrets(env: Environnement, production: boolean, out: Diagnost
   }
 }
 
+/** Nom de bucket compatible S3 *virtual-host style* : un point casserait le certificat TLS. */
+export function nomBucketValide(nom: string): boolean {
+  return nom.length >= 3 && nom.length <= 63 && /^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(nom) && !nom.includes("--");
+}
+
+/** Bucket Scaleway des justificatifs déposés par les salariés. */
+function controlerStockage(env: Environnement, production: boolean, out: Diagnostic[]): void {
+  const cle = env.SCALEWAY_ACCESS_KEY_ID?.trim();
+  const secret = env.SCALEWAY_SECRET_ACCESS_KEY?.trim();
+  const bucket = env.SCALEWAY_BUCKET?.trim();
+  const renseignes = [cle, secret, bucket].filter(Boolean).length;
+  if (renseignes === 0) {
+    out.push({ variable: "SCALEWAY_*", gravite: production ? "erreur" : "avertissement", message: "non configuré : les salariés ne peuvent pas déposer de justificatif (arrêt de travail, acte…)." });
+    return;
+  }
+  if (renseignes < 3) {
+    out.push({ variable: "SCALEWAY_*", gravite: "erreur", message: "configuration partielle : `SCALEWAY_ACCESS_KEY_ID`, `SCALEWAY_SECRET_ACCESS_KEY` et `SCALEWAY_BUCKET` vont ensemble." });
+  }
+  if (cle && estPlaceholder(cle)) out.push({ variable: "SCALEWAY_ACCESS_KEY_ID", gravite: "erreur", message: "valeur d'exemple." });
+  else if (cle && !/^SCW[A-Z0-9]{17}$/.test(cle)) out.push({ variable: "SCALEWAY_ACCESS_KEY_ID", gravite: "avertissement", message: "format inhabituel : une clé Scaleway commence par `SCW` et fait 20 caractères." });
+  if (secret && estPlaceholder(secret)) out.push({ variable: "SCALEWAY_SECRET_ACCESS_KEY", gravite: "erreur", message: "valeur d'exemple." });
+  if (bucket && !nomBucketValide(bucket)) {
+    out.push({ variable: "SCALEWAY_BUCKET", gravite: "erreur", message: "nom invalide : 3 à 63 caractères, minuscules, chiffres et tirets simples. Un point casserait le certificat TLS." });
+  }
+  const region = env.SCALEWAY_REGION?.trim() || "fr-par";
+  if (region !== "fr-par") out.push({ variable: "SCALEWAY_REGION", gravite: "erreur", message: `${region} : le projet impose \`fr-par\` (documents conservés en France).` });
+  const endpoint = env.SCALEWAY_ENDPOINT?.trim();
+  if (endpoint && !endpoint.startsWith("https://")) out.push({ variable: "SCALEWAY_ENDPOINT", gravite: "erreur", message: "doit être en HTTPS." });
+  if (endpoint && !endpoint.includes(`s3.${region}.scw.cloud`)) {
+    out.push({ variable: "SCALEWAY_ENDPOINT", gravite: "erreur", message: `incohérent avec \`SCALEWAY_REGION\` (${region}) : attendu \`https://s3.${region}.scw.cloud\`.` });
+  }
+  if (env.SCALEWAY_PATH_STYLE?.trim() === "1" && production) {
+    out.push({ variable: "SCALEWAY_PATH_STYLE", gravite: "erreur", message: "réservée aux essais sur un serveur S3 local : à retirer en production." });
+  }
+  // Le navigateur envoie le fichier au bucket depuis l'adresse du service : sans elle, pas de règle CORS.
+  if (!env.NEXT_PUBLIC_APP_URL?.trim()) {
+    out.push({ variable: "NEXT_PUBLIC_APP_URL", gravite: "erreur", message: "requise avec le bucket : c'est l'origine autorisée à y envoyer les justificatifs (`npm run scaleway:setup`)." });
+  }
+}
+
 function controlerEmail(env: Environnement, out: Diagnostic[]): void {
   const cle = env.RESEND_API_KEY?.trim();
   const expediteur = env.EMAIL_EXPEDITEUR?.trim();
@@ -253,6 +296,7 @@ export function controlerEnvironnement(env: Environnement, options: OptionsContr
   const out: Diagnostic[] = [];
   controlerBase(env, production, out);
   controlerSecrets(env, production, out);
+  controlerStockage(env, production, out);
   controlerEmail(env, out);
   controlerDivers(env, production, out);
   const ordre: Record<Gravite, number> = { erreur: 0, avertissement: 1, info: 2 };

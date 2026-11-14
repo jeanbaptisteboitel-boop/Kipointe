@@ -6,7 +6,8 @@ CREATE TABLE "justificatif" (
 	"nom" text NOT NULL,
 	"type_mime" text NOT NULL,
 	"taille" integer NOT NULL,
-	"contenu" "bytea" NOT NULL,
+	"cle" text NOT NULL,
+	"confirme_le" timestamp with time zone,
 	"depose_par" uuid,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
