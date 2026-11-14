@@ -14,6 +14,7 @@
  */
 import {
   boolean,
+  customType,
   date,
   doublePrecision,
   index,
@@ -59,6 +60,7 @@ export const typeNotificationEnum = pgEnum("type_notification", [
   "CONGE_DECISION",
   "POINTEUSE_SILENCIEUSE",
   "BADGE_NON_RATTACHE",
+  "JUSTIFICATIF_DEPOSE",
 ]);
 
 const cree = { createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull().defaultNow() };
@@ -261,6 +263,37 @@ export const congeAbsence = pgTable(
     ...modifie,
   },
   (t) => [index("conge_org_statut_idx").on(t.organisationId, t.statut), index("conge_salarie_idx").on(t.salarieId, t.dateDebut)],
+);
+
+/** Colonne binaire PostgreSQL (bytea). */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+  fromDriver: (v) => Buffer.from(v),
+});
+
+/**
+ * Justificatif d'une absence (arrêt de travail, acte, convocation). Le fichier est conservé en
+ * base, dans l'organisation du salarié : il suit le même cloisonnement que le reste, n'est servi
+ * qu'au salarié concerné et aux administrateurs, et disparaît avec l'absence.
+ */
+export const justificatif = pgTable(
+  "justificatif",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisation.id, { onDelete: "cascade" }),
+    congeId: uuid("conge_id")
+      .notNull()
+      .references(() => congeAbsence.id, { onDelete: "cascade" }),
+    nom: text("nom").notNull(),
+    typeMime: text("type_mime").notNull(),
+    taille: integer("taille").notNull(),
+    contenu: bytea("contenu").notNull(),
+    deposePar: uuid("depose_par").references(() => utilisateur.id, { onDelete: "set null" }),
+    ...cree,
+  },
+  (t) => [index("justificatif_conge_idx").on(t.congeId)],
 );
 
 // ───────────────────────────── Notifications ─────────────────────────────

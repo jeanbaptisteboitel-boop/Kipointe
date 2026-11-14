@@ -6,6 +6,7 @@ import { Chiffre, Ecart, EnTete, PastilleSemaine, Section, Vide } from "@/compon
 import { congeAbsence, pointeuse } from "@/db/schema";
 import { lire } from "@/lib/acces";
 import { exigerAdmin } from "@/lib/auth/session";
+import { avecJustificatifs } from "@/lib/conges/justificatifs";
 import { aujourdhuiDe, chargerOrganisation, chargerSuiviEquipe, nomComplet } from "@/lib/donnees";
 import { SILENCE_MAX_MS } from "@/lib/notifications/quotidien";
 import { listerNotifications } from "@/lib/notifications/service";
@@ -28,6 +29,7 @@ export default async function TableauDeBord() {
           .from(congeAbsence)
           .where(and(eq(congeAbsence.statut, "EN_ATTENTE"), inArray(congeAbsence.salarieId, ids)))
           .orderBy(asc(congeAbsence.dateDebut))
+          .then((c) => avecJustificatifs(tx, c))
       : [];
     const appareils = await tx.select().from(pointeuse).where(eq(pointeuse.actif, true));
     const notifications = (await listerNotifications(tx, u.organisationId, null, 30)).filter((n) => !n.luLe).slice(0, 6);

@@ -4,6 +4,7 @@ import { Chip, EnTete, Section } from "@/components/ui";
 import { congeAbsence, salarie } from "@/db/schema";
 import { lire } from "@/lib/acces";
 import { exigerAdmin } from "@/lib/auth/session";
+import { avecJustificatifs } from "@/lib/conges/justificatifs";
 import { nomComplet } from "@/lib/donnees";
 
 export const metadata = { title: "Congés et absences" };
@@ -19,7 +20,7 @@ export default async function PageConges({ searchParams }: { searchParams: Promi
   const { vue = "attente" } = await searchParams;
   const u = await exigerAdmin();
   const { conges, fiches } = await lire(u, async (tx) => ({
-    conges: await tx.select().from(congeAbsence).orderBy(desc(congeAbsence.dateDebut)).limit(400),
+    conges: await avecJustificatifs(tx, await tx.select().from(congeAbsence).orderBy(desc(congeAbsence.dateDebut)).limit(400)),
     fiches: await tx.select().from(salarie).where(eq(salarie.actif, true)).orderBy(asc(salarie.nom), asc(salarie.prenom)),
   }));
   const noms = new Map(fiches.map((f) => [f.id, nomComplet(f)]));

@@ -9,7 +9,7 @@ const ALERTES: TypeNotification[] = ["HEURES_MANQUANTES", "ABSENCE_A_JUSTIFIER",
 
 function Icone({ type }: { type: TypeNotification }) {
   if (ALERTES.includes(type)) return <IconeAlerte size={17} />;
-  if (type === "SEMAINE_A_VALIDER" || type === "CONGE_DEMANDE") return <IconeHorloge size={17} />;
+  if (type === "SEMAINE_A_VALIDER" || type === "CONGE_DEMANDE" || type === "JUSTIFICATIF_DEPOSE") return <IconeHorloge size={17} />;
   return <IconeInfo size={17} />;
 }
 

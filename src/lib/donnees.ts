@@ -5,6 +5,7 @@
 import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import type { Tx } from "@/db";
 import { congeAbsence, organisation, pointageSemaine, salarie, type CongeAbsence, type Organisation, type Salarie } from "@/db/schema";
+import { avecJustificatifs, type CongeAvecJustificatifs } from "@/lib/conges/justificatifs";
 import { calculerCompteurHeures, departParDefaut, mesurerSemaines, type ResultatCompteur, type SemaineCompteur } from "@/lib/heures/compteur";
 import { lireJours, type JourPointage } from "@/lib/pointage/paires";
 import { planningEffectif, type PlanningTravail, type SourcePlanning } from "@/lib/planning";
@@ -35,14 +36,14 @@ export interface SuiviSalarie {
   fiche: Salarie;
   planning: PlanningTravail;
   sourcePlanning: SourcePlanning;
-  conges: CongeAbsence[];
+  conges: CongeAvecJustificatifs[];
   semaines: SemaineLue[];
   compteur: ResultatCompteur;
   /** Les `n` dernières semaines (la plus récente en dernier), compteur ou non. */
   semainesAffichees: SemaineCompteur[];
 }
 
-function construireSuivi(org: Organisation, fiche: Salarie, conges: CongeAbsence[], semaines: SemaineLue[], aujourdhui: string, nbSemaines: number): SuiviSalarie {
+function construireSuivi(org: Organisation, fiche: Salarie, conges: CongeAvecJustificatifs[], semaines: SemaineLue[], aujourdhui: string, nbSemaines: number): SuiviSalarie {
   const { planning, source } = planningEffectif(fiche, org);
   const donnees = { planning, conges, pointagesSemaines: semaines, dateEntree: fiche.dateEntree, dateSortie: fiche.dateSortie, aujourdhui };
   // Sans réglage, le compteur ne remonte pas avant le PREMIER JOUR POINTÉ du salarié : les semaines
@@ -86,7 +87,7 @@ export async function chargerSuiviSalarie(tx: Tx, org: Organisation, fiche: Sala
       .where(and(eq(pointageSemaine.salarieId, fiche.id), gte(pointageSemaine.semaineDebut, du)))
       .orderBy(desc(pointageSemaine.semaineDebut)),
   ]);
-  return construireSuivi(org, fiche, conges, semaines.map((s) => ({ ...s, jours: lireJours(s.jours) })), aujourdhui, nbSemaines);
+  return construireSuivi(org, fiche, await avecJustificatifs(tx, conges), semaines.map((s) => ({ ...s, jours: lireJours(s.jours) })), aujourdhui, nbSemaines);
 }
 
 /** Suivi de tous les salariés de l'organisation (actifs par défaut), triés par nom. */
@@ -108,11 +109,12 @@ export async function chargerSuiviEquipe(tx: Tx, org: Organisation, aujourdhui: 
       .where(and(inArray(pointageSemaine.salarieId, ids), gte(pointageSemaine.semaineDebut, du)))
       .orderBy(desc(pointageSemaine.semaineDebut)),
   ]);
+  const complets = await avecJustificatifs(tx, conges);
   return fiches.map((f) =>
     construireSuivi(
       org,
       f,
-      conges.filter((c) => c.salarieId === f.id),
+      complets.filter((c) => c.salarieId === f.id),
       semaines.filter((s) => s.salarieId === f.id).map((s) => ({ ...s, jours: lireJours(s.jours) })),
       aujourdhui,
       nb,
