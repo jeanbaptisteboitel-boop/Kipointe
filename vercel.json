@@ -4,7 +4,7 @@
   "regions": ["cdg1"],
   "crons": [
     {
-      "path": "/api/cron/purge",
+      "path": "/api/cron/quotidien",
       "schedule": "0 3 * * *"
     }
   ]

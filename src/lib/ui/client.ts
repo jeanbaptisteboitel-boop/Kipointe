@@ -13,18 +13,9 @@ export class ErreurApi extends Error {
 
 const MESSAGES: Record<string, string> = {
   NON_CONNECTE: "Session expirée : reconnectez-vous.",
-  ROLE_INSUFFISANT: "Accès réservé au gérant.",
-  IDENTIFIANTS_INVALIDES: "Email ou mot de passe incorrect.",
+  IDENTIFIANTS_INVALIDES: "Adresse e-mail ou mot de passe incorrect.",
+  TROP_DE_TENTATIVES: "Trop de tentatives : réessayez dans un quart d'heure.",
   DONNEES_INVALIDES: "Données invalides.",
-  SALARIE_INTROUVABLE: "Salarié introuvable.",
-  RECAP_DEJA_VALIDE: "Ce récapitulatif est déjà validé.",
-  SEMAINE_NON_TERMINEE: "La semaine n'est pas terminée : validation possible à partir du lundi 04:00.",
-  STOCKAGE_NON_CONFIGURE: "Stockage Scaleway non configuré (variables SCALEWAY_*).",
-  RECAP_NON_VALIDE: "Le PDF n'existe qu'après validation.",
-  CORRECTION_VIDE: "Indiquez au moins une modification.",
-  HORODATAGE_FUTUR: "L'horodatage est dans le futur.",
-  AUCUN_ETABLISSEMENT: "Créez d'abord un établissement.",
-  TERMINAL_INTROUVABLE: "Terminal introuvable.",
   ERREUR_INTERNE: "Erreur interne, réessayez.",
 };
 

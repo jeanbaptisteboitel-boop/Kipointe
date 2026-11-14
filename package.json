@@ -2,7 +2,7 @@
   "name": "kipointe",
   "version": "0.1.0",
   "private": true,
-  "description": "Kipointe — pointage du temps de travail par badge QR + PIN sur tablette murale (cabinet OMNIUP)",
+  "description": "Kipointe — suivi du temps de travail relié à la pointeuse du client : pointages, plannings, congés et compteur d'heures (édité par OMNIUP)",
   "engines": {
     "node": ">=22"
   },
@@ -23,17 +23,17 @@
     "scaleway:verifier": "tsx scripts/scaleway-bucket-setup.ts --verifier"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1135.0",
-    "@aws-sdk/s3-request-presigner": "^3.1135.0",
+    "@aws-sdk/client-s3": "^3.1169.0",
+    "@aws-sdk/s3-request-presigner": "^3.1169.0",
     "@date-fns/tz": "^1.5.0",
     "@neondatabase/serverless": "^1.1.0",
     "@node-rs/argon2": "^2.2.1",
     "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
+    "heic-decode": "^2.1.0",
+    "jpeg-js": "^0.4.4",
     "next": "16.3.5",
-    "pdf-lib": "^1.17.1",
     "pg": "^8.16.3",
-    "qrcode": "^1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "ws": "^8.21.3",
@@ -44,7 +44,6 @@
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.20.3",
     "@types/pg": "^8.15.5",
-    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/ws": "^8.18.1",

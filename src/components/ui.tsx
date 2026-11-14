@@ -1,23 +1,21 @@
 import Link from "next/link";
-import type { TypeAnomalie } from "@/db/schema";
-import { IconeAlerte, IconeCadenas, IconeCheck, IconeCorrige, IconeHorloge, IconeRotation } from "@/components/icones";
+import type { StatutConge, StatutSemaine } from "@/db/schema";
+import { IconeAlerte, IconeCheck, IconeCroix, IconeHorloge } from "@/components/icones";
+import { LIBELLES_STATUT_CONGE } from "@/lib/conges/types";
+import { formatEcart } from "@/lib/pointage/paires";
 
-/** Kicker monospace : « 01 — FONDATIONS », « SEMAINE 38 · 2026 ». */
+/** Kicker monospace : « SEMAINE 46 · 2026 ». */
 export function Kicker({ children }: { children: React.ReactNode }) {
   return <div className="kicker">{children}</div>;
 }
 
-/** Onglet de l'espace gérant : soulignement cyan de 3 px quand il est actif. */
+/** Onglet de navigation : soulignement cyan de 3 px quand il est actif. */
 export function Onglet({ href, actif, children }: { href: string; actif: boolean; children: React.ReactNode }) {
   return (
     <Link
       href={href}
       className="px-0.5 pt-[18px] pb-4 text-sm whitespace-nowrap"
-      style={{
-        fontWeight: actif ? 700 : 500,
-        color: actif ? "var(--navy)" : "var(--muted)",
-        boxShadow: actif ? "inset 0 -3px 0 var(--cyan)" : "none",
-      }}
+      style={{ fontWeight: actif ? 700 : 500, color: actif ? "var(--navy)" : "var(--muted)", boxShadow: actif ? "inset 0 -3px 0 var(--cyan)" : "none" }}
       aria-current={actif ? "page" : undefined}
     >
       {children}
@@ -31,117 +29,123 @@ export function Chip({ href, actif, children }: { href: string; actif: boolean; 
     <Link
       href={href}
       className="rounded-full px-4 py-[7px] text-[13px] font-semibold"
-      style={
-        actif
-          ? { background: "var(--navy)", color: "#fff", border: "1px solid var(--navy)" }
-          : { background: "#fff", color: "var(--muted)", border: "1px solid var(--line-portal)" }
-      }
+      style={actif ? { background: "var(--navy)", color: "#fff", border: "1px solid var(--navy)" } : { background: "#fff", color: "var(--muted)", border: "1px solid var(--line-portal)" }}
     >
       {children}
     </Link>
   );
 }
 
-export type EtatRecap = "valide" | "a-valider" | "en-cours";
+/** En-tête de page : kicker, titre, et actions à droite. */
+export function EnTete({ kicker, titre, children }: { kicker?: string; titre: string; children?: React.ReactNode }) {
+  return (
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        {kicker && <Kicker>{kicker}</Kicker>}
+        <h1 className="titre mt-1 text-[26px]">{titre}</h1>
+      </div>
+      {children && <div className="flex flex-wrap items-center gap-2.5">{children}</div>}
+    </div>
+  );
+}
 
-/** Statut d'un récap : une icône, un mot, jamais la couleur seule. */
-export function PastilleRecap({ etat }: { etat: EtatRecap }) {
-  if (etat === "valide")
+/** Bloc titré d'une fiche. */
+export function Section({ titre, aide, actions, children }: { titre: string; aide?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="card">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="titre-sm text-[17px]">{titre}</h2>
+          {aide && (
+            <p className="mt-1 text-[13px]" style={{ color: "var(--muted)" }}>
+              {aide}
+            </p>
+          )}
+        </div>
+        {actions}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Statut d'une semaine de pointage : une icône et un mot, jamais la couleur seule. */
+export function PastilleSemaine({ statut }: { statut: StatutSemaine }) {
+  if (statut === "VALIDE")
     return (
       <span className="pastille pastille-ok">
         <IconeCheck size={13} strokeWidth={3} />
-        validé
+        validée
       </span>
     );
-  if (etat === "a-valider")
+  if (statut === "MODIF_DEMANDEE")
     return (
-      <span className="pastille pastille-attente">
-        <IconeHorloge size={13} />à valider
+      <span className="pastille pastille-danger">
+        <IconeAlerte size={13} />
+        modification demandée
       </span>
     );
   return (
-    <span className="pastille pastille-info">
-      <IconeRotation size={13} />
-      en cours
+    <span className="pastille pastille-alerte">
+      <IconeHorloge size={13} />à valider
     </span>
   );
 }
 
-export function PastilleVerrouille() {
-  return (
-    <span className="pastille pastille-danger">
-      <IconeCadenas size={13} />
-      badge verrouillé
-    </span>
-  );
-}
-
-export function PastilleCorrige() {
-  return (
-    <span className="pastille pastille-info">
-      <IconeCorrige size={12} />
-      corrigé
-    </span>
-  );
-}
-
-export function PastilleAnomalie({ statut }: { statut: "OUVERTE" | "TRAITEE" | "IGNOREE" }) {
-  if (statut === "OUVERTE")
-    return (
-      <span className="pastille pastille-alerte">
-        <IconeAlerte size={12} />
-        ouverte
-      </span>
-    );
-  if (statut === "TRAITEE")
+export function PastilleConge({ statut }: { statut: StatutConge }) {
+  const libelle = LIBELLES_STATUT_CONGE[statut].toLowerCase();
+  if (statut === "ACCEPTEE")
     return (
       <span className="pastille pastille-ok">
-        <IconeCheck size={12} strokeWidth={3} />
-        traitée
+        <IconeCheck size={13} strokeWidth={3} />
+        {libelle}
       </span>
     );
-  return <span className="pastille pastille-attente">ignorée</span>;
-}
-
-/** État d'un terminal : point coloré + mot. */
-export function PastilleTerminal({ etat }: { etat: "connecte" | "silencieux" | "non-appaire" | "desactive" }) {
-  const map = {
-    connecte: ["pastille-ok", "#2BB673", "connecté"],
-    silencieux: ["pastille-danger", "#E5484D", "silencieux"],
-    "non-appaire": ["pastille-attente", "#9AA7BD", "non appairé"],
-    desactive: ["pastille-attente", "#9AA7BD", "désactivé"],
-  } as const;
-  const [cls, dot, libelle] = map[etat];
+  if (statut === "REFUSEE")
+    return (
+      <span className="pastille pastille-danger">
+        <IconeCroix size={13} />
+        {libelle}
+      </span>
+    );
   return (
-    <span className={`pastille ${cls}`}>
-      <span className="h-[7px] w-[7px] rounded-full" style={{ background: dot }} />
+    <span className="pastille pastille-alerte">
+      <IconeHorloge size={13} />
       {libelle}
     </span>
   );
 }
 
-const LIBELLES_ANOMALIE: Record<TypeAnomalie, string> = {
-  OUBLI_SORTIE: "Oubli de sortie",
-  DOUBLE_SCAN: "Double scan",
-  HORS_PLAGE: "Pointage incohérent",
-  REPOS_11H: "Repos quotidien < 11 h",
-  REPOS_HEBDO: "Repos hebdomadaire < 35 h",
-  PAUSE_MANQUANTE: "Pause manquante",
-  AMPLITUDE: "Amplitude > 13 h",
-  PIN_VERROUILLE: "PIN verrouillé",
-  POINTAGE_HORS_LIGNE: "Pointage hors ligne",
-};
-
-export function libelleAnomalie(type: TypeAnomalie): string {
-  return LIBELLES_ANOMALIE[type];
+/** Écart signé au contrat : « −2 h 00 » (heures dues) en rouge, « +1 h 30 » en bleu, toujours avec son signe. */
+export function Ecart({ minutes, provisoire = false }: { minutes: number; provisoire?: boolean }) {
+  const couleur = minutes < 0 ? "var(--danger-ink)" : minutes > 0 ? "var(--info-ink)" : "var(--muted)";
+  return (
+    <span className="tabnum font-bold" style={{ color: couleur }} title={minutes < 0 ? "Heures non effectuées par rapport au contrat" : minutes > 0 ? "Heures au-delà du contrat" : "Conforme au contrat"}>
+      {formatEcart(minutes)}
+      {provisoire && <span className="font-medium"> *</span>}
+    </span>
+  );
 }
 
-/** Anomalie dans un tableau : icône ambre + libellé. */
-export function LigneAnomalie({ type }: { type: TypeAnomalie }) {
+/** Chiffre clé d'un tableau de bord. */
+export function Chiffre({ libelle, valeur, detail }: { libelle: string; valeur: React.ReactNode; detail?: React.ReactNode }) {
   return (
-    <span className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: "var(--warn-ink)" }}>
-      <IconeAlerte size={14} />
-      {libelleAnomalie(type)}
-    </span>
+    <div className="card-plat px-5 py-4">
+      <div className="kicker">{libelle}</div>
+      <div className="display tabnum mt-1.5 text-[26px]">{valeur}</div>
+      {detail && (
+        <div className="mt-1 text-[12px]" style={{ color: "var(--muted)" }}>
+          {detail}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Vide({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="py-6 text-center text-sm" style={{ color: "var(--muted)" }}>
+      {children}
+    </p>
   );
 }
