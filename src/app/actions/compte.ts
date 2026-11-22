@@ -80,16 +80,3 @@ export async function basculerClient(id: string, actif: boolean) {
     revalidatePath("/plateforme");
   });
 }
-
-/** Ouvre ou ferme l'option SMS d'un client (facturée à l'usage). La fermer coupe aussitôt le pointage par SMS. */
-export async function basculerOptionSms(id: string, ouverte: boolean) {
-  return actionPlateforme(async (tx) => {
-    const r = await tx
-      .update(organisation)
-      .set(ouverte ? { optionSms: true } : { optionSms: false, tabletteSms: false })
-      .where(and(eq(organisation.id, id), eq(organisation.plateforme, false)))
-      .returning({ id: organisation.id });
-    if (!r.length) throw new ErreurMetier("Client introuvable.");
-    revalidatePath("/plateforme");
-  });
-}

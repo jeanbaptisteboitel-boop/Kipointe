@@ -85,9 +85,8 @@ export const organisation = pgTable("organisation", {
   /** Modes de pointage proposés sur les tablettes de l'entreprise. */
   tabletteCode: boolean("tablette_code").notNull().default(true),
   tabletteQr: boolean("tablette_qr").notNull().default(true),
-  tabletteSms: boolean("tablette_sms").notNull().default(false),
-  /** Option payante, ouverte par l'éditeur : envoi de SMS (pointage par code reçu par SMS). */
-  optionSms: boolean("option_sms").notNull().default(false),
+  /** Photo prise par la tablette à chaque pointage par code (contre le pointage pour un collègue). */
+  tablettePhoto: boolean("tablette_photo").notNull().default(false),
   ...cree,
 });
 
@@ -108,8 +107,6 @@ export const salarie = pgTable(
     pointeuseRef: text("pointeuse_ref"),
     /** Empreinte du code personnel tapé sur la tablette (jamais le code lui-même). */
     codePointageHash: text("code_pointage_hash"),
-    /** Mobile au format international (+33…), pour le code de pointage envoyé par SMS. */
-    telephone: text("telephone"),
     /** Planning propre (temps partiel, horaires particuliers). Null = planning de l'organisation. */
     planning: jsonb("planning").$type<PlanningTravail>(),
     dateEntree: date("date_entree"),
@@ -267,28 +264,10 @@ export const pointageTablette = pgTable(
     heure: text("heure").notNull(),
     /** arrivee, depart, ou double_badge (rien d'écrit). */
     typeApplique: text("type_applique").notNull(),
+    /** Clé de la photo dans le bucket ; effacée, avec la photo, à la fin de la durée de conservation. */
+    photoCle: text("photo_cle"),
   },
   (t) => [index("pointage_tablette_tablette_idx").on(t.tabletteId, t.instant), index("pointage_tablette_salarie_idx").on(t.salarieId, t.instant)],
-);
-
-/** Code à usage unique envoyé par SMS pour pointer. Une ligne = un SMS envoyé (base de la facturation). */
-export const smsPointage = pgTable(
-  "sms_pointage",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    organisationId: uuid("organisation_id")
-      .notNull()
-      .references(() => organisation.id, { onDelete: "cascade" }),
-    salarieId: uuid("salarie_id")
-      .notNull()
-      .references(() => salarie.id, { onDelete: "cascade" }),
-    tabletteId: uuid("tablette_id").references(() => tablette.id, { onDelete: "set null" }),
-    codeHash: text("code_hash").notNull(),
-    expireLe: timestamp("expire_le", { withTimezone: true, mode: "date" }).notNull(),
-    utiliseLe: timestamp("utilise_le", { withTimezone: true, mode: "date" }),
-    ...cree,
-  },
-  (t) => [index("sms_pointage_org_idx").on(t.organisationId, t.createdAt), index("sms_pointage_code_idx").on(t.organisationId, t.codeHash)],
 );
 
 /** Rendez-vous d'un salarié (médecine du travail, entretien…) : rappelé au pointage et dans son espace. */

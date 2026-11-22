@@ -1,11 +1,11 @@
 import { asc, eq, sql } from "drizzle-orm";
-import { basculerClient, basculerOptionSms } from "@/app/actions/compte";
+import { basculerClient } from "@/app/actions/compte";
 import { BoutonAction } from "@/components/client";
 import { Coquille } from "@/components/Coquille";
 import { FormulaireClient } from "@/components/Formulaires";
 import { EnTete, Section, Vide } from "@/components/ui";
 import { getDb } from "@/db";
-import { organisation, pointeuse, salarie, smsPointage, tablette } from "@/db/schema";
+import { organisation, pointeuse, salarie } from "@/db/schema";
 import { withBypass } from "@/db/tenant";
 import { exigerPlateforme } from "@/lib/auth/session";
 import { frDate, frDateHeure, jourLocal } from "@/lib/temps/zone";
@@ -25,10 +25,6 @@ export default async function PagePlateforme() {
         createdAt: organisation.createdAt,
         salaries: sql<number>`(select count(*)::int from ${salarie} where ${salarie.organisationId} = ${organisation.id} and ${salarie.actif})`,
         pointeuses: sql<number>`(select count(*)::int from ${pointeuse} where ${pointeuse.organisationId} = ${organisation.id})`,
-        optionSms: organisation.optionSms,
-        tablettes: sql<number>`(select count(*)::int from ${tablette} where ${tablette.organisationId} = ${organisation.id})`,
-        smsMois: sql<number>`(select count(*)::int from ${smsPointage} where ${smsPointage.organisationId} = ${organisation.id} and ${smsPointage.createdAt} >= date_trunc('month', now()))`,
-        smsMoisDernier: sql<number>`(select count(*)::int from ${smsPointage} where ${smsPointage.organisationId} = ${organisation.id} and ${smsPointage.createdAt} >= date_trunc('month', now()) - interval '1 month' and ${smsPointage.createdAt} < date_trunc('month', now()))`,
         dernierContact: sql<string | null>`(select max(${pointeuse.derniereConnexion}) from ${pointeuse} where ${pointeuse.organisationId} = ${organisation.id})`,
       })
       .from(organisation)
@@ -54,8 +50,6 @@ export default async function PagePlateforme() {
                     <th className="text-left">Depuis le</th>
                     <th className="text-right">Salariés</th>
                     <th className="text-right">Pointeuses</th>
-                    <th className="text-right">Tablettes</th>
-                    <th className="text-left">SMS (ce mois · mois dernier)</th>
                     <th className="text-left">Dernier contact pointeuse</th>
                     <th className="text-left">État</th>
                     <th />
@@ -75,15 +69,6 @@ export default async function PagePlateforme() {
                       <td className="tabnum">{frDate(jourLocal(c.createdAt))}</td>
                       <td className="tabnum text-right">{c.salaries}</td>
                       <td className="tabnum text-right">{c.pointeuses}</td>
-                      <td className="tabnum text-right">{c.tablettes}</td>
-                      <td>
-                        <span className="inline-flex flex-wrap items-center gap-2">
-                          {c.optionSms ? <span className="tabnum font-bold">{c.smsMois} · {c.smsMoisDernier}</span> : <span style={{ color: "var(--faint)" }}>option fermée</span>}
-                          <BoutonAction action={basculerOptionSms.bind(null, c.id, !c.optionSms)} confirmer={c.optionSms ? `Fermer l'option SMS de ${c.raisonSociale} ? Le pointage par SMS s'arrête aussitôt.` : undefined}>
-                            {c.optionSms ? "Fermer" : "Ouvrir"}
-                          </BoutonAction>
-                        </span>
-                      </td>
                       <td className="tabnum">{frDateHeure(c.dernierContact ? new Date(c.dernierContact) : null)}</td>
                       <td>{c.actif ? <span className="pastille pastille-ok">actif</span> : <span className="pastille pastille-danger">suspendu</span>}</td>
                       <td className="text-right">

@@ -15,8 +15,8 @@ android {
         applicationId = "com.omniup.pointage"
         minSdk = 28            // Android 9
         targetSdk = 35
-        versionCode = 2
-        versionName = "2.0.0"
+        versionCode = 3
+        versionName = "2.1.0"
         // Adresse proposée au premier lancement ; modifiable sur la tablette.
         buildConfigField("String", "ADRESSE_DEFAUT", "\"https://kipointe.vercel.app\"")
     }

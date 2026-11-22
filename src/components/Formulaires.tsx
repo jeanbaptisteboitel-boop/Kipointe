@@ -28,7 +28,7 @@ function Champ({ libelle, aide, children, large = false }: { libelle: string; ai
 
 export function FormulaireSalarie({ id, initial }: { id?: string; initial?: SaisieSalarie }) {
   const router = useRouter();
-  const [s, setS] = useState<SaisieSalarie>(initial ?? { nom: "", prenom: "", matricule: "", email: "", telephone: "", pointeuseRef: "", dateEntree: "", dateSortie: "", actif: true });
+  const [s, setS] = useState<SaisieSalarie>(initial ?? { nom: "", prenom: "", matricule: "", email: "", pointeuseRef: "", dateEntree: "", dateSortie: "", actif: true });
   const a = useAction();
   const champ = (cle: keyof SaisieSalarie) => ({ value: (s[cle] as string) ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => setS({ ...s, [cle]: e.target.value }) });
   return (
@@ -61,9 +61,6 @@ export function FormulaireSalarie({ id, initial }: { id?: string; initial?: Sais
         </Champ>
         <Champ libelle="Adresse e-mail" aide="Identifiant de son espace salarié et adresse de ses notifications." large>
           <input className="input" type="email" maxLength={200} {...champ("email")} />
-        </Champ>
-        <Champ libelle="Mobile (facultatif)" aide="Sert uniquement au code de pointage par SMS, si cette option est ouverte.">
-          <input className="input" type="tel" maxLength={20} placeholder="06 12 34 56 78" {...champ("telephone")} />
         </Champ>
         <Champ libelle="Date d'entrée">
           <input className="input" type="date" {...champ("dateEntree")} />

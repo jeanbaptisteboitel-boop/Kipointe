@@ -23,6 +23,12 @@ async function main() {
     console.warn("[migrate] SKIP_MIGRATIONS=1 : migrations ignorées.");
     return;
   }
+  // Un aperçu Vercel (branche, pull request) ne touche pas à la base : s'il partageait celle de la
+  // production, une migration qui retire une colonne casserait le service avant même la fusion.
+  if (process.env.VERCEL_ENV === "preview" && process.env.MIGRER_APERCUS !== "1") {
+    console.warn("[migrate] aperçu Vercel : migrations ignorées (MIGRER_APERCUS=1 pour les appliquer, avec une base réservée aux aperçus).");
+    return;
+  }
   console.log("[migrate] application des migrations…");
   if (utiliserDriverPg(url)) {
     const pool = new PgPool({ connectionString: url, max: 1 });

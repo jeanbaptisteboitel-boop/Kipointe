@@ -43,6 +43,20 @@
       "when": 1795359896931,
       "tag": "0005_sms",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795382476378,
+      "tag": "0006_retrait_sms",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795382477357,
+      "tag": "0007_photo_pointage",
+      "breakpoints": true
     }
   ]
 }

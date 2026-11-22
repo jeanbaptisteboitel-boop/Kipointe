@@ -1,15 +1,15 @@
-import { asc, eq, isNotNull } from "drizzle-orm";
+import { asc, desc, eq, isNotNull } from "drizzle-orm";
 import { headers } from "next/headers";
 import { modifierTablette, retirerCode, supprimerTablette } from "@/app/actions/tablettes";
 import { BoutonAction } from "@/components/client";
 import { CodeSalarie, FormulaireTablette, ModesTablette, RenouvelerActivation } from "@/components/Tablettes";
 import { EnTete, Section, Vide } from "@/components/ui";
-import { salarie, tablette, utilisateur } from "@/db/schema";
+import { pointageTablette, salarie, tablette, utilisateur } from "@/db/schema";
 import { lire } from "@/lib/acces";
 import { exigerAdmin } from "@/lib/auth/session";
 import { chargerOrganisation, nomComplet } from "@/lib/donnees";
 import { SILENCE_TABLETTE_MS } from "@/lib/notifications/quotidien";
-import { frDateHeure } from "@/lib/temps/zone";
+import { frDate, frDateHeure } from "@/lib/temps/zone";
 
 export const metadata = { title: "Tablettes" };
 
@@ -19,6 +19,13 @@ export default async function PageTablettes() {
     org: await chargerOrganisation(tx, u.organisationId),
     tablettes: await tx.select().from(tablette).orderBy(asc(tablette.createdAt)),
     fiches: await tx.select().from(salarie).where(eq(salarie.actif, true)).orderBy(asc(salarie.nom), asc(salarie.prenom)),
+    derniers: await tx
+      .select({ id: pointageTablette.id, jour: pointageTablette.jour, heure: pointageTablette.heure, mode: pointageTablette.mode, sens: pointageTablette.typeApplique, photo: pointageTablette.photoCle, prenom: salarie.prenom, nom: salarie.nom, tablette: tablette.nom })
+      .from(pointageTablette)
+      .innerJoin(salarie, eq(pointageTablette.salarieId, salarie.id))
+      .leftJoin(tablette, eq(pointageTablette.tabletteId, tablette.id))
+      .orderBy(desc(pointageTablette.instant))
+      .limit(40),
     comptes: await tx.select({ salarieId: utilisateur.salarieId }).from(utilisateur).where(isNotNull(utilisateur.salarieId)),
   }));
   const h = await headers();
@@ -82,8 +89,8 @@ export default async function PageTablettes() {
           </div>
         </Section>
 
-        <Section titre="Façons de pointer" aide="Vous pouvez en ouvrir plusieurs : chaque salarié utilise celle qui lui convient.">
-          <ModesTablette code={d.org.tabletteCode} qr={d.org.tabletteQr} sms={d.org.tabletteSms} optionSms={d.org.optionSms} />
+        <Section titre="Façons de pointer" aide="Vous pouvez ouvrir les deux : chaque salarié utilise celle qui lui convient.">
+          <ModesTablette code={d.org.tabletteCode} qr={d.org.tabletteQr} photo={d.org.tablettePhoto} />
         </Section>
 
         <Section
@@ -100,7 +107,6 @@ export default async function PageTablettes() {
                     <th className="text-left">Salarié</th>
                     <th className="text-left">Code personnel</th>
                     <th className="text-left">QR code</th>
-                    {d.org.optionSms && <th className="text-left">SMS</th>}
                     <th />
                   </tr>
                 </thead>
@@ -110,7 +116,6 @@ export default async function PageTablettes() {
                       <td className="font-bold">{nomComplet(f)}</td>
                       <td>{f.codePointageHash ? <span className="pastille pastille-ok">attribué</span> : <span className="pastille pastille-attente">aucun</span>}</td>
                       <td>{avecCompte.has(f.id) ? <span className="pastille pastille-ok">espace salarié ouvert</span> : <span className="pastille pastille-attente">pas d'espace salarié</span>}</td>
-                      {d.org.optionSms && <td>{f.telephone ? <span className="pastille pastille-ok">mobile renseigné</span> : <span className="pastille pastille-attente">pas de mobile</span>}</td>}
                       <td className="text-right">
                         <span className="inline-flex flex-wrap items-start justify-end gap-2">
                           <CodeSalarie salarieId={f.id} nom={nomComplet(f)} aUnCode={!!f.codePointageHash} />
@@ -120,6 +125,49 @@ export default async function PageTablettes() {
                             </BoutonAction>
                           )}
                         </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+
+        <Section titre="Derniers pointages sur tablette" aide="Les quarante derniers. Une photo n'existe que pour un pointage par code, si l'option est activée ; chaque consultation est inscrite au journal.">
+          {d.derniers.length === 0 ? (
+            <Vide>Aucun pointage sur tablette pour l'instant.</Vide>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="tbl w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left">Date</th>
+                    <th className="text-left">Heure</th>
+                    <th className="text-left">Salarié</th>
+                    <th className="text-left">Pointage</th>
+                    <th className="text-left">Par</th>
+                    <th className="text-left">Tablette</th>
+                    <th className="text-left">Photo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.derniers.map((p) => (
+                    <tr key={p.id}>
+                      <td className="tabnum">{frDate(p.jour)}</td>
+                      <td className="tabnum font-bold">{p.heure}</td>
+                      <td>{nomComplet(p)}</td>
+                      <td>{p.sens === "arrivee" ? "arrivée" : p.sens === "depart" ? "départ" : "ignoré (double pointage)"}</td>
+                      <td>{p.mode === "QR" ? "QR code" : "code"}</td>
+                      <td>{p.tablette ?? "—"}</td>
+                      <td>
+                        {p.photo ? (
+                          <a href={`/api/pointages/${p.id}/photo`} target="_blank" rel="noreferrer" className="font-bold underline">
+                            Voir
+                          </a>
+                        ) : (
+                          <span style={{ color: "var(--faint)" }}>—</span>
+                        )}
                       </td>
                     </tr>
                   ))}

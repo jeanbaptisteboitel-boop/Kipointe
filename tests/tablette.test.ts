@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as schema from "@/db/schema";
-import { withBypass } from "@/db/tenant";
+import { withBypass, withTenant } from "@/db/tenant";
 import { fichePointage } from "@/lib/tablette/fiche";
 import { DUREE_PAS_MS, jetonQr, lireJetonQr, normaliserCode, verifierJetonQr } from "@/lib/tablette/jeton";
 import { activerTablette, creerTablette, definirCodeSalarie, pointerParCode, pointerParQr, renouvelerActivation, trouverTablette, type TabletteConnue } from "@/lib/tablette/service";
@@ -116,5 +116,45 @@ describe("tablette", () => {
     const jetonAvant = await activerTablette(fx.db, await dansOrg(fx, (tx) => renouvelerActivation(tx, t.id, T0)), T0);
     await dansOrg(fx, (tx) => renouvelerActivation(tx, t.id, T0));
     expect(await trouverTablette(fx.db, jetonAvant)).toBeNull();
+  });
+});
+
+describe("photo au pointage", () => {
+  const jpeg = (taille = 2000) => `data:image/jpeg;base64,${Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(taille, 7)]).toString("base64")}`;
+
+  it("n'accepte qu'un vrai JPEG de taille raisonnable", async () => {
+    const { lirePhoto, TAILLE_MAX_PHOTO } = await import("@/lib/tablette/photo");
+    expect(lirePhoto(jpeg())?.length).toBe(2004);
+    expect(lirePhoto(`data:image/jpeg;base64,${Buffer.from("<html>pas une image</html>".repeat(60)).toString("base64")}`)).toBeNull();
+    expect(lirePhoto(jpeg().replace("image/jpeg", "image/png"))).toBeNull();
+    expect(lirePhoto(jpeg(TAILLE_MAX_PHOTO))).toBeNull();
+    expect(lirePhoto(undefined)).toBeNull();
+  });
+
+  it("range la photo, la montre à l'administrateur seulement, puis la détruit après trente jours", async () => {
+    const { enregistrerPhoto, lirePhoto, purgerPhotos, trouverPhoto } = await import("@/lib/tablette/photo");
+    const fx = await creerFixture();
+    const autre = await creerOrganisation(fx.db, { raisonSociale: "Autre", numeroSerie: "AUTRE000002" });
+    const objets = new Map<string, Uint8Array>();
+    const bucket = { ecrire: async (cle: string, o: Uint8Array) => void objets.set(cle, o), supprimer: async (cles: string[]) => cles.forEach((c) => objets.delete(c)) } as unknown as import("@/lib/stockage").Stockage;
+    const { codeActivation } = await dansOrg(fx, (tx) => creerTablette(tx, fx.organisation.id, "Entrée", T0));
+    const t = (await trouverTablette(fx.db, await activerTablette(fx.db, codeActivation, T0)))!;
+    const code = await dansOrg(fx, (tx) => definirCodeSalarie(tx, fx.organisation.id, fx.salaries[0]!.id));
+    const r = await pointerParCode(fx.db, t, code, T0);
+    if (!r.ok) throw new Error("pointage refusé");
+
+    expect(await enregistrerPhoto(fx.db, bucket, { organisationId: fx.organisation.id, pointageId: r.pointageId, octets: lirePhoto(jpeg())! })).toBe(true);
+    expect([...objets.keys()]).toEqual([`pointages/${fx.organisation.id}/${r.pointageId}.jpg`]);
+    expect(await dansOrg(fx, (tx) => trouverPhoto(tx, r.pointageId))).toMatchObject({ salarieId: fx.salaries[0]!.id, heure: "08:02" });
+    // Un autre client ne voit pas cette photo, et ne peut pas en rattacher une à ce pointage.
+    expect(await withTenant(fx.db, autre.org.id, (tx) => trouverPhoto(tx, r.pointageId))).toBeNull();
+    expect(await enregistrerPhoto(fx.db, bucket, { organisationId: autre.org.id, pointageId: r.pointageId, octets: lirePhoto(jpeg())! })).toBe(false);
+    expect(objets.size).toBe(1);
+
+    expect(await withBypass(fx.db, (tx) => purgerPhotos(tx, plus(29 * 24 * 60)))).toEqual([]);
+    const cles = await withBypass(fx.db, (tx) => purgerPhotos(tx, plus(31 * 24 * 60)));
+    expect(cles).toEqual([`pointages/${fx.organisation.id}/${r.pointageId}.jpg`]);
+    expect(await dansOrg(fx, (tx) => trouverPhoto(tx, r.pointageId))).toBeNull();
+    await fx.fermer();
   });
 });

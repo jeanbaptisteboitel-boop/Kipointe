@@ -8,6 +8,7 @@ import { HttpError, extraireBearer, json, route } from "@/lib/http";
 import { envoyerEmailsEnAttente } from "@/lib/notifications/email";
 import { executerQuotidien } from "@/lib/notifications/quotidien";
 import { stockage } from "@/lib/stockage";
+import { purgerPhotos } from "@/lib/tablette/photo";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -29,5 +30,8 @@ export const GET = route(async (req) => {
   // Envois de justificatifs annoncés mais jamais confirmés : lignes et fichiers supprimés.
   const abandonnes = await withBypass(db, (tx) => purgerDepotsAbandonnes(tx, new Date()));
   if (abandonnes.length) await stockage()?.supprimer(abandonnes);
-  return json({ ...bilan, emails, depotsAbandonnes: abandonnes.length });
+  // Photos de pointage arrivées en fin de conservation : détachées, puis supprimées du bucket.
+  const photos = await withBypass(db, (tx) => purgerPhotos(tx, new Date()));
+  if (photos.length) await stockage()?.supprimer(photos);
+  return json({ ...bilan, emails, depotsAbandonnes: abandonnes.length, photosPurgees: photos.length });
 });
