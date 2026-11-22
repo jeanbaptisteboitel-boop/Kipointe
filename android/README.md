@@ -1,4 +1,11 @@
-# Application Android — tablette de pointage Kipointe
+# Applications Android Kipointe
+
+Deux applications dans ce projet Gradle :
+
+- `app/` — **tablette de pointage** (`com.omniup.pointage`), installée par fichier APK ;
+- `salarie/` — **application du salarié** (`com.omniup.kipointe`), publiée sur Google Play. Voir la fin de ce document.
+
+## Tablette de pointage
 
 Petite application Kotlin qui affiche la page `/tablette` du service en plein écran et verrouille
 la tablette dessus : écran toujours allumé, relance au démarrage, aucun lien sortant, sortie par
@@ -7,7 +14,7 @@ réinstaller l'application.
 
 ## Obtenir l'APK
 
-Le dépôt le construit : onglet **Actions → Application tablette**, dernier passage, fichier
+Le dépôt le construit : onglet **Actions → Applications Android**, dernier passage, fichier
 `kipointe-tablette` à télécharger. En local : JDK 17, SDK Android 35, Gradle 8.9 ou plus, puis
 `gradle -p android assembleDebug` (ou `assembleRelease` avec la clé de signature).
 
@@ -54,3 +61,20 @@ nouveau code) ou « Quitter l'application ».
 | `BootReceiver.kt` | relance au démarrage de la tablette |
 | `AdminReceiver.kt` | requis par `dpm set-device-owner` |
 | `assets/offline.html` | page d'attente quand le service est injoignable |
+
+## Application du salarié (Google Play)
+
+Elle ouvre l'espace salarié du service et lui ajoute un lecteur de QR code pour pointer sur la
+tablette sans quitter l'application. Fichiers : `salarie/src/main/java/com/omniup/kipointe/MainActivity.kt`.
+
+- **Identifiant** : `com.omniup.kipointe`, définitif une fois l'application créée dans la Play
+  Console. Changez-le avant (`applicationId` et `namespace` dans `salarie/build.gradle.kts`, et le
+  dossier du code).
+- **Adresse du service** : fixée à la construction, `gradle -p android -Padresse=https://<domaine> …`
+  (par défaut `https://kipointe.vercel.app`).
+- **Fichier à déposer sur Google Play** : le `.aab` de l'artefact `kipointe-salarie-android`,
+  produit quand la clé de signature est fournie en secrets (voir « Signature » plus haut). Le
+  numéro de version suit celui du passage de la CI : il augmente tout seul.
+- **Première mise en ligne** : Play Console → créer l'application → *Tests internes* → déposer le
+  `.aab`. Google propose de gérer la clé de signature finale (« Play App Signing ») : accepter, la
+  clé du dépôt devient la clé d'envoi.

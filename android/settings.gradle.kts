@@ -14,3 +14,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "kipointe-tablette"
 include(":app")
+include(":salarie")

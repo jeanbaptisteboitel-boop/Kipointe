@@ -1,0 +1,30 @@
+name: Application iPhone
+
+on:
+  push:
+    branches: [main]
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+jobs:
+  construire:
+    name: Compiler l'application
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installer XcodeGen
+        run: brew install xcodegen
+      - name: Générer le projet Xcode
+        working-directory: ios
+        run: xcodegen generate
+      # Compilation pour le simulateur, sans signature : vérifie que le code se construit.
+      # La version à publier se signe et s'archive depuis Xcode (voir ios/README.md).
+      - name: Compiler
+        working-directory: ios
+        run: |
+          xcodebuild -project Kipointe.xcodeproj -scheme Kipointe -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -n 40
+          exit "${PIPESTATUS[0]}"

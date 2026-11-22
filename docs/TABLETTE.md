@@ -30,9 +30,14 @@ pointages à moins de deux minutes d'écart : le second est ignoré.
 
 ## Sur le téléphone du salarié
 
-L'espace salarié s'installe sur l'écran d'accueil et s'ouvre comme une application, sur iPhone
-(Safari → Partager → « Sur l'écran d'accueil ») comme sur Android (bouton « Installer »). Ce n'est
-pas une application des magasins Apple ou Google : rien à télécharger depuis un store.
+Deux possibilités, qui donnent le même espace salarié :
+
+- **Applications des magasins** : Android ([android/README.md](../android/README.md)) et iPhone
+  ([ios/README.md](../ios/README.md)). Elles ont un bouton « Pointer » qui ouvre un lecteur de QR
+  code : le salarié vise la tablette sans quitter l'application.
+- **Sans magasin** : l'espace salarié s'installe sur l'écran d'accueil depuis le navigateur (iPhone :
+  Safari → Partager → « Sur l'écran d'accueil » ; Android : bouton « Installer »). Le QR code se lit
+  alors avec l'appareil photo du téléphone.
 
 ## Mise en service
 

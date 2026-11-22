@@ -22,7 +22,8 @@ export function Installer() {
     } catch {
       // Stockage indisponible (navigation privée) : on propose simplement à chaque fois.
     }
-    if (installee || ecartee) return;
+    // Dans l'application des magasins, il n'y a plus rien à installer.
+    if (installee || ecartee || /KipointeApp\//.test(navigator.userAgent)) return;
     const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
     setIphone(ios);
     if (ios) setVisible(true);

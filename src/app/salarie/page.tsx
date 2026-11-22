@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { HeuresGraphique } from "@/components/HeuresGraphique";
 import { Installer } from "@/components/Installer";
+import { ScannerNatif } from "@/components/ScannerNatif";
 import { ListeNotifications } from "@/components/ListeNotifications";
 import { Chiffre, Ecart, EnTete, Section } from "@/components/ui";
 import { formatJours } from "@/lib/conges/types";
@@ -25,6 +26,7 @@ export default async function AccueilSalarie() {
     <>
       <EnTete kicker={frJourLong(aujourdhui)} titre={`Bonjour ${u.prenom}`} />
 
+      <ScannerNatif />
       <Installer />
 
       {rappels.map((r) => (
