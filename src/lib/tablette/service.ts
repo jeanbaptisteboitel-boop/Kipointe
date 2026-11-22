@@ -31,11 +31,12 @@ import {
   normaliserCode,
   verifierJetonQr,
 } from "@/lib/tablette/jeton";
+import { consommerCodeSms } from "@/lib/tablette/sms";
 import { horodatageLocal } from "@/lib/temps/zone";
 
 export const COOKIE_TABLETTE = "kipointe_tablette";
 
-export type ModePointage = "CODE" | "QR";
+export type ModePointage = "CODE" | "QR" | "SMS";
 export type SensPointage = "arrivee" | "depart" | "double_badge";
 
 export interface TabletteConnue {
@@ -52,6 +53,8 @@ export interface TabletteConnue {
   organisationActive: boolean;
   modeCode: boolean;
   modeQr: boolean;
+  /** Ouvert par l'entreprise ET option accordée par l'éditeur. */
+  modeSms: boolean;
 }
 
 const colonnes = {
@@ -68,6 +71,7 @@ const colonnes = {
   organisationActive: organisation.actif,
   modeCode: organisation.tabletteCode,
   modeQr: organisation.tabletteQr,
+  modeSms: sql<boolean>`${organisation.tabletteSms} and ${organisation.optionSms}`,
 };
 
 // ─── Enregistrement et activation ───
@@ -192,7 +196,7 @@ export type ResultatCode = ({ ok: true } & PointageFait) | { ok: false; raison: 
 
 /** Pointage par code tapé sur la tablette. Cinq codes faux de suite bloquent le clavier une minute. */
 export async function pointerParCode(db: Db, t: TabletteConnue, codeSaisi: unknown, maintenant = new Date()): Promise<ResultatCode> {
-  if (!t.modeCode) return { ok: false, raison: "MODE_FERME" };
+  if (!t.modeCode && !t.modeSms) return { ok: false, raison: "MODE_FERME" };
   return withTenant(db, t.organisationId, async (tx) => {
     // Verrou sur la tablette : le compteur d'essais ne peut pas être contourné par des envois simultanés.
     const [etat] = await tx.select({ echecs: tablette.echecs, bloqueeJusqua: tablette.bloqueeJusqua }).from(tablette).where(eq(tablette.id, t.id)).for("update");
@@ -201,12 +205,17 @@ export async function pointerParCode(db: Db, t: TabletteConnue, codeSaisi: unkno
       return { ok: false, raison: "BLOQUEE", attenteSecondes: Math.ceil((etat.bloqueeJusqua.getTime() - maintenant.getTime()) / 1000) } as const;
     }
     const code = normaliserCode(codeSaisi);
-    const [fiche] = code
-      ? await tx
-          .select({ id: salarie.id, prenom: salarie.prenom, actif: salarie.actif, dateSortie: salarie.dateSortie })
-          .from(salarie)
-          .where(and(eq(salarie.organisationId, t.organisationId), eq(salarie.codePointageHash, hacherCode(t.organisationId, code))))
-      : [];
+    const champs = { id: salarie.id, prenom: salarie.prenom, actif: salarie.actif, dateSortie: salarie.dateSortie };
+    let mode: ModePointage = "CODE";
+    let [fiche] = code && t.modeCode ? await tx.select(champs).from(salarie).where(and(eq(salarie.organisationId, t.organisationId), eq(salarie.codePointageHash, hacherCode(t.organisationId, code)))) : [];
+    if (!fiche && code && t.modeSms && code.length === 6) {
+      // Pas un code personnel : peut-être le code à usage unique reçu par SMS.
+      const salarieId = await consommerCodeSms(tx, t, code, maintenant);
+      if (salarieId) {
+        [fiche] = await tx.select(champs).from(salarie).where(eq(salarie.id, salarieId));
+        mode = "SMS";
+      }
+    }
     if (!fiche || !enPoste(fiche, horodatageLocal(maintenant, t.fuseau).date)) {
       const echecs = etat.echecs + 1;
       const bloque = echecs >= ESSAIS_AVANT_BLOCAGE;
@@ -216,7 +225,7 @@ export async function pointerParCode(db: Db, t: TabletteConnue, codeSaisi: unkno
         .where(eq(tablette.id, t.id));
       return bloque ? ({ ok: false, raison: "BLOQUEE", attenteSecondes: DUREE_BLOCAGE_MS / 1000 } as const) : ({ ok: false, raison: "CODE_INCONNU" } as const);
     }
-    const r = await pointerSalarie(tx, { organisationId: t.organisationId, tabletteId: t.id, salarieId: fiche.id, mode: "CODE", fuseau: t.fuseau, maintenant });
+    const r = await pointerSalarie(tx, { organisationId: t.organisationId, tabletteId: t.id, salarieId: fiche.id, mode, fuseau: t.fuseau, maintenant });
     await tx.update(tablette).set({ echecs: 0, bloqueeJusqua: null, dernierContact: maintenant }).where(eq(tablette.id, t.id));
     return { ok: true, salarieId: fiche.id, prenom: fiche.prenom, ...r } as const;
   });

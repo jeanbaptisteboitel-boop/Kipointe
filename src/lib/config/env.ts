@@ -264,6 +264,21 @@ function controlerEmail(env: Environnement, out: Diagnostic[]): void {
   }
 }
 
+const VARIABLES_SMS = ["OVH_SMS_APP_KEY", "OVH_SMS_APP_SECRET", "OVH_SMS_CONSUMER_KEY", "OVH_SMS_COMPTE", "OVH_SMS_EXPEDITEUR"] as const;
+
+function controlerSms(env: Environnement, out: Diagnostic[]): void {
+  const presentes = VARIABLES_SMS.filter((v) => env[v]?.trim());
+  // Option : sans aucune variable, rien à signaler.
+  if (!presentes.length) return;
+  for (const v of VARIABLES_SMS) {
+    if (!env[v]?.trim()) out.push({ variable: v, gravite: "erreur", message: "les cinq variables `OVH_SMS_*` vont ensemble : sans celle-ci, aucun SMS ne part." });
+  }
+  const expediteur = env.OVH_SMS_EXPEDITEUR?.trim();
+  if (expediteur && expediteur.length > 11) out.push({ variable: "OVH_SMS_EXPEDITEUR", gravite: "erreur", message: "11 caractères au plus, tel que déclaré chez OVH." });
+  const compte = env.OVH_SMS_COMPTE?.trim();
+  if (compte && !/^sms-[a-z]{2}\d+-\d+$/.test(compte)) out.push({ variable: "OVH_SMS_COMPTE", gravite: "avertissement", message: "format inhabituel : un compte SMS OVH se nomme `sms-xx00000-1`." });
+}
+
 function controlerDivers(env: Environnement, production: boolean, out: Diagnostic[]): void {
   const driver = env.DATABASE_DRIVER?.trim();
   if (driver && driver !== "pg" && driver !== "neon") {
@@ -298,6 +313,7 @@ export function controlerEnvironnement(env: Environnement, options: OptionsContr
   controlerSecrets(env, production, out);
   controlerStockage(env, production, out);
   controlerEmail(env, out);
+  controlerSms(env, out);
   controlerDivers(env, production, out);
   const ordre: Record<Gravite, number> = { erreur: 0, avertissement: 1, info: 2 };
   return out.sort((a, b) => ordre[a.gravite] - ordre[b.gravite]);

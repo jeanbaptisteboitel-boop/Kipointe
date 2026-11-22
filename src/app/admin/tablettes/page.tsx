@@ -82,8 +82,8 @@ export default async function PageTablettes() {
           </div>
         </Section>
 
-        <Section titre="Façons de pointer" aide="Vous pouvez ouvrir les deux : chaque salarié utilise celle qui lui convient.">
-          <ModesTablette code={d.org.tabletteCode} qr={d.org.tabletteQr} />
+        <Section titre="Façons de pointer" aide="Vous pouvez en ouvrir plusieurs : chaque salarié utilise celle qui lui convient.">
+          <ModesTablette code={d.org.tabletteCode} qr={d.org.tabletteQr} sms={d.org.tabletteSms} optionSms={d.org.optionSms} />
         </Section>
 
         <Section
@@ -100,6 +100,7 @@ export default async function PageTablettes() {
                     <th className="text-left">Salarié</th>
                     <th className="text-left">Code personnel</th>
                     <th className="text-left">QR code</th>
+                    {d.org.optionSms && <th className="text-left">SMS</th>}
                     <th />
                   </tr>
                 </thead>
@@ -109,6 +110,7 @@ export default async function PageTablettes() {
                       <td className="font-bold">{nomComplet(f)}</td>
                       <td>{f.codePointageHash ? <span className="pastille pastille-ok">attribué</span> : <span className="pastille pastille-attente">aucun</span>}</td>
                       <td>{avecCompte.has(f.id) ? <span className="pastille pastille-ok">espace salarié ouvert</span> : <span className="pastille pastille-attente">pas d'espace salarié</span>}</td>
+                      {d.org.optionSms && <td>{f.telephone ? <span className="pastille pastille-ok">mobile renseigné</span> : <span className="pastille pastille-attente">pas de mobile</span>}</td>}
                       <td className="text-right">
                         <span className="inline-flex flex-wrap items-start justify-end gap-2">
                           <CodeSalarie salarieId={f.id} nom={nomComplet(f)} aUnCode={!!f.codePointageHash} />

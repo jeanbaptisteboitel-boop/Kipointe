@@ -116,7 +116,7 @@ export default async function FicheSalarie({ params }: { params: Promise<{ id: s
           <Section titre="Fiche">
             <FormulaireSalarie
               id={f.id}
-              initial={{ nom: f.nom, prenom: f.prenom, matricule: f.matricule ?? "", email: f.email ?? "", pointeuseRef: f.pointeuseRef ?? "", dateEntree: f.dateEntree ?? "", dateSortie: f.dateSortie ?? "", actif: f.actif }}
+              initial={{ nom: f.nom, prenom: f.prenom, matricule: f.matricule ?? "", email: f.email ?? "", telephone: f.telephone ?? "", pointeuseRef: f.pointeuseRef ?? "", dateEntree: f.dateEntree ?? "", dateSortie: f.dateSortie ?? "", actif: f.actif }}
             />
           </Section>
           <Section titre="Espace salarié" aide={d.compte?.actif ? "Ce salarié a accès à son espace : heures, congés, compteur, notifications." : "Ouvrez l'accès pour que le salarié consulte ses heures, valide ses semaines et demande ses congés."}>

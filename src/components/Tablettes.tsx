@@ -74,17 +74,18 @@ export function RenouvelerActivation({ id, reliee }: { id: string; reliee: boole
   );
 }
 
-export function ModesTablette({ code, qr }: { code: boolean; qr: boolean }) {
+export function ModesTablette({ code, qr, sms, optionSms }: { code: boolean; qr: boolean; sms: boolean; optionSms: boolean }) {
   const [c, setC] = useState(code);
   const [q, setQ] = useState(qr);
+  const [m, setM] = useState(sms);
   const a = useAction();
-  const change = c !== code || q !== qr;
+  const change = c !== code || q !== qr || m !== sms;
   return (
     <form
       className="flex flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        a.lancer(() => reglerModesTablette({ code: c, qr: q }), () => "Réglage enregistré : les tablettes l'appliquent dans les dix secondes.");
+        a.lancer(() => reglerModesTablette({ code: c, qr: q, sms: m }), () => "Réglage enregistré : les tablettes l'appliquent dans les dix secondes.");
       }}
     >
       <label className="flex items-start gap-3">
@@ -105,7 +106,18 @@ export function ModesTablette({ code, qr }: { code: boolean; qr: boolean }) {
           </span>
         </span>
       </label>
-      {!c && !q && <p className="encart-alerte text-[13px] font-semibold">Aucun mode ouvert : personne ne pourra pointer sur les tablettes.</p>}
+      <label className="flex items-start gap-3" style={{ opacity: optionSms ? 1 : 0.6 }}>
+        <input type="checkbox" className="mt-1" checked={m} disabled={!optionSms} onChange={(e) => setM(e.target.checked)} />
+        <span>
+          <span className="font-bold">Code reçu par SMS</span> <span className="pastille pastille-info">option</span>
+          <span className="block text-[13px]" style={{ color: "var(--muted)" }}>
+            {optionSms
+              ? "Le salarié touche son nom sur la tablette et reçoit un code sur son mobile (numéro à renseigner sur sa fiche). Chaque SMS envoyé est facturé."
+              : "Le salarié reçoit un code sur son mobile. Option facturée à l'usage : demandez son ouverture à votre revendeur."}
+          </span>
+        </span>
+      </label>
+      {!c && !q && !m && <p className="encart-alerte text-[13px] font-semibold">Aucun mode ouvert : personne ne pourra pointer sur les tablettes.</p>}
       <Messages erreur={a.erreur} info={a.info} />
       <div>
         <button type="submit" className="btn-primary btn-sm" disabled={a.enCours || !change}>

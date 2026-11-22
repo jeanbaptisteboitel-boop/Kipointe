@@ -10,6 +10,7 @@ import { tokenAleatoire } from "@/lib/crypto";
 import { lireSoldeHeures } from "@/lib/heures/compteur";
 import { journaliserAcces } from "@/lib/journal";
 import { planningOrganisation, planningsEgaux, validerPlanning } from "@/lib/planning";
+import { normaliserMobile } from "@/lib/sms/ovh";
 import { normaliserPin } from "@/lib/pointeuse/adms";
 import { retraiterNonRattaches } from "@/lib/pointeuse/enregistrement";
 import { estJourValide } from "@/lib/temps/zone";
@@ -19,6 +20,7 @@ export interface SaisieSalarie {
   prenom: string;
   matricule?: string;
   email?: string;
+  telephone?: string;
   pointeuseRef?: string;
   dateEntree?: string;
   dateSortie?: string;
@@ -43,6 +45,8 @@ async function lireSaisie(tx: Tx, organisationId: string, s: SaisieSalarie, sauf
   if (!nom || !prenom) throw new ErreurMetier("Nom et prénom sont obligatoires.");
   const email = texte(s.email, 200)?.toLowerCase() ?? null;
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ErreurMetier("Adresse e-mail invalide.");
+  const telephone = String(s.telephone ?? "").trim() ? normaliserMobile(s.telephone) : null;
+  if (String(s.telephone ?? "").trim() && !telephone) throw new ErreurMetier("Mobile invalide : attendu un numéro en 06 ou 07, ou avec indicatif (+32…).");
   const pointeuseRef = normaliserPin(s.pointeuseRef) || null;
   if (pointeuseRef && pointeuseRef.length > 32) throw new ErreurMetier("Numéro de pointeuse trop long.");
   const dateEntree = dateOuNull(s.dateEntree, "Date d'entrée");
@@ -55,7 +59,7 @@ async function lireSaisie(tx: Tx, organisationId: string, s: SaisieSalarie, sauf
       .where(and(eq(salarie.organisationId, organisationId), eq(salarie.pointeuseRef, pointeuseRef), eq(salarie.actif, true), saufId ? ne(salarie.id, saufId) : undefined));
     if (doublons.length) throw new ErreurMetier(`Le numéro de pointeuse ${pointeuseRef} est déjà celui de ${doublons[0]!.prenom} ${doublons[0]!.nom}.`);
   }
-  return { nom, prenom, matricule: texte(s.matricule, 40), email, pointeuseRef, dateEntree, dateSortie };
+  return { nom, prenom, matricule: texte(s.matricule, 40), email, telephone, pointeuseRef, dateEntree, dateSortie };
 }
 
 export async function creerSalarie(s: SaisieSalarie) {

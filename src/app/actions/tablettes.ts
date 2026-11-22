@@ -42,9 +42,11 @@ export async function supprimerTablette(id: string) {
   });
 }
 
-export async function reglerModesTablette(p: { code: boolean; qr: boolean }) {
+export async function reglerModesTablette(p: { code: boolean; qr: boolean; sms: boolean }) {
   return actionAdmin(async (tx, u) => {
-    await tx.update(organisation).set({ tabletteCode: !!p.code, tabletteQr: !!p.qr }).where(eq(organisation.id, u.organisationId));
+    const [org] = await tx.select({ optionSms: organisation.optionSms }).from(organisation).where(eq(organisation.id, u.organisationId));
+    if (p.sms && !org?.optionSms) throw new ErreurMetier("Le pointage par SMS est une option : demandez son ouverture à votre revendeur.");
+    await tx.update(organisation).set({ tabletteCode: !!p.code, tabletteQr: !!p.qr, tabletteSms: !!p.sms }).where(eq(organisation.id, u.organisationId));
     revalidatePath("/admin/tablettes");
   });
 }
