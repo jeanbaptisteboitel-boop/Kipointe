@@ -22,6 +22,7 @@ export default async function LayoutAdmin({ children }: { children: React.ReactN
         ["/admin", "Tableau de bord"],
         ["/admin/salaries", "Salariés"],
         ["/admin/conges", "Congés et absences"],
+        ["/admin/tablettes", "Tablettes"],
         ["/admin/pointeuses", "Pointeuses"],
         ["/admin/notifications", nonLues ? `Notifications (${nonLues})` : "Notifications"],
         ["/admin/parametres", "Paramètres"],

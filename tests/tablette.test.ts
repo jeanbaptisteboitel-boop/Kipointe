@@ -1,0 +1,101 @@
+import { eq } from "drizzle-orm";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import * as schema from "@/db/schema";
+import { withBypass } from "@/db/tenant";
+import { DUREE_PAS_MS, jetonQr, lireJetonQr, normaliserCode, verifierJetonQr } from "@/lib/tablette/jeton";
+import { activerTablette, creerTablette, definirCodeSalarie, pointerParCode, pointerParQr, renouvelerActivation, trouverTablette, type TabletteConnue } from "@/lib/tablette/service";
+import { creerFixture, creerOrganisation, dansOrg, type Fixture } from "./helpers/db";
+
+// Lundi 16 novembre 2026, 08:02 à Paris.
+const T0 = new Date("2026-11-16T07:02:00Z");
+const plus = (min: number) => new Date(T0.getTime() + min * 60_000);
+
+describe("jetons du QR code", () => {
+  const id = "11111111-2222-3333-4444-555555555555";
+  it("vaut pour le pas courant et les deux suivants, pas au-delà", () => {
+    const j = lireJetonQr(jetonQr(id, "secret", T0))!;
+    expect(verifierJetonQr(j, "secret", T0)).toBe("VALIDE");
+    expect(verifierJetonQr(j, "secret", new Date(T0.getTime() + 2 * DUREE_PAS_MS))).toBe("VALIDE");
+    expect(verifierJetonQr(j, "secret", new Date(T0.getTime() + 4 * DUREE_PAS_MS))).toBe("EXPIRE");
+  });
+  it("refuse une signature d'un autre secret ou un pas modifié", () => {
+    const j = lireJetonQr(jetonQr(id, "secret", T0))!;
+    expect(verifierJetonQr(j, "autre", T0)).toBe("FAUX");
+    expect(verifierJetonQr({ ...j, pas: j.pas + 1 }, "secret", T0)).toBe("FAUX");
+    expect(lireJetonQr("n'importe quoi")).toBeNull();
+  });
+  it("n'accepte que 4 à 6 chiffres comme code personnel", () => {
+    expect(normaliserCode("12 34")).toBe("1234");
+    expect(normaliserCode("123")).toBeNull();
+    expect(normaliserCode("12a4")).toBeNull();
+  });
+});
+
+describe("tablette", () => {
+  let fx: Fixture;
+  let t: TabletteConnue;
+  let code1: string;
+  beforeAll(async () => {
+    fx = await creerFixture();
+    const { codeActivation } = await dansOrg(fx, (tx) => creerTablette(tx, fx.organisation.id, "Entrée atelier", T0));
+    const jeton = await activerTablette(fx.db, codeActivation.toLowerCase(), T0);
+    expect(jeton).toBeTruthy();
+    expect(await activerTablette(fx.db, codeActivation, T0)).toBeNull(); // usage unique
+    t = (await trouverTablette(fx.db, jeton))!;
+    code1 = await dansOrg(fx, (tx) => definirCodeSalarie(tx, fx.organisation.id, fx.salaries[0]!.id));
+  });
+  afterAll(() => fx.fermer());
+
+  const semaine = () =>
+    dansOrg(fx, async (tx) => (await tx.select().from(schema.pointageSemaine).where(eq(schema.pointageSemaine.salarieId, fx.salaries[0]!.id)))[0]);
+
+  it("pointe par code : arrivée, double pointage ignoré, puis départ", async () => {
+    const a = await pointerParCode(fx.db, t, code1, T0);
+    expect(a).toMatchObject({ ok: true, sens: "arrivee", heure: "08:02", prenom: "Prenom1" });
+    expect(await pointerParCode(fx.db, t, code1, plus(1))).toMatchObject({ ok: true, sens: "double_badge" });
+    expect(await pointerParCode(fx.db, t, code1, plus(240))).toMatchObject({ ok: true, sens: "depart", heure: "12:02" });
+    const s = await semaine();
+    expect(s!.totalMinutes).toBe(240);
+    expect(s!.jours[0]!.pointages).toEqual([{ entree: "08:02", sortie: "12:02", source: "tablette" }]);
+  });
+
+  it("bloque le clavier après cinq codes faux, puis le rouvre", async () => {
+    const faux = code1 === "0000" ? "1111" : "0000";
+    for (let i = 0; i < 4; i++) expect(await pointerParCode(fx.db, t, faux, plus(300))).toMatchObject({ ok: false, raison: "CODE_INCONNU" });
+    expect(await pointerParCode(fx.db, t, faux, plus(300))).toMatchObject({ ok: false, raison: "BLOQUEE" });
+    // Même le bon code attend la fin du blocage.
+    expect(await pointerParCode(fx.db, t, code1, plus(300))).toMatchObject({ ok: false, raison: "BLOQUEE" });
+    expect(await pointerParCode(fx.db, t, code1, plus(302))).toMatchObject({ ok: true, sens: "arrivee" });
+  });
+
+  it("pointe par QR code depuis le téléphone du salarié", async () => {
+    const qui = { organisationId: fx.organisation.id, salarieId: fx.salaries[1]!.id };
+    const jeton = jetonQr(t.id, t.secretQr, plus(10));
+    expect(await pointerParQr(fx.db, { jeton, ...qui }, plus(10))).toMatchObject({ ok: true, sens: "arrivee", tablette: "Entrée atelier", prenom: "Prenom2" });
+    expect(await pointerParQr(fx.db, { jeton, ...qui }, plus(20))).toMatchObject({ ok: false, raison: "QR_EXPIRE" });
+    expect(await pointerParQr(fx.db, { jeton: jetonQr(t.id, "faux-secret", plus(10)), ...qui }, plus(10))).toMatchObject({ ok: false, raison: "QR_INVALIDE" });
+  });
+
+  it("refuse le QR code de la tablette d'un autre client", async () => {
+    const autre = await creerOrganisation(fx.db, { raisonSociale: "Autre", numeroSerie: "AUTRE000001" });
+    const r = await pointerParQr(fx.db, { jeton: jetonQr(t.id, t.secretQr, T0), organisationId: autre.org.id, salarieId: autre.salaries[0]!.id }, T0);
+    expect(r).toMatchObject({ ok: false, raison: "AUTRE_ENTREPRISE" });
+  });
+
+  it("respecte les modes fermés par l'entreprise", async () => {
+    await withBypass(fx.db, (tx) => tx.update(schema.organisation).set({ tabletteCode: false, tabletteQr: false }).where(eq(schema.organisation.id, fx.organisation.id)));
+    const ferme = { ...t, modeCode: false, modeQr: false };
+    expect(await pointerParCode(fx.db, ferme, code1, plus(400))).toMatchObject({ ok: false, raison: "MODE_FERME" });
+    const r = await pointerParQr(fx.db, { jeton: jetonQr(t.id, t.secretQr, plus(400)), organisationId: fx.organisation.id, salarieId: fx.salaries[1]!.id }, plus(400));
+    expect(r).toMatchObject({ ok: false, raison: "MODE_FERME" });
+    await withBypass(fx.db, (tx) => tx.update(schema.organisation).set({ tabletteCode: true, tabletteQr: true }).where(eq(schema.organisation.id, fx.organisation.id)));
+  });
+
+  it("donne des codes distincts et coupe la tablette quand son activation est renouvelée", async () => {
+    const code2 = await dansOrg(fx, (tx) => definirCodeSalarie(tx, fx.organisation.id, fx.salaries[1]!.id));
+    expect(code2).not.toBe(code1);
+    const jetonAvant = await activerTablette(fx.db, await dansOrg(fx, (tx) => renouvelerActivation(tx, t.id, T0)), T0);
+    await dansOrg(fx, (tx) => renouvelerActivation(tx, t.id, T0));
+    expect(await trouverTablette(fx.db, jetonAvant)).toBeNull();
+  });
+});

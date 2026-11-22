@@ -78,7 +78,8 @@ npm run scaleway:verifier    # audit en lecture seule
 1. Espace éditeur → **Nouveau client** : remettre à l'administrateur ses identifiants provisoires.
 2. L'administrateur règle le **planning de l'entreprise** (Paramètres), crée ses **salariés** avec
    leur numéro dans la pointeuse, enregistre le **numéro de série** de l'appareil (Pointeuses) et
-   suit le guide de branchement affiché sur cette page.
+   suit le guide de branchement affiché sur cette page. Avec une **tablette** à la place : page
+   Tablettes, voir [TABLETTE.md](TABLETTE.md).
 3. Il ouvre l'**espace salarié** de chacun depuis sa fiche.
 
 Détail du protocole et de ses limites : [POINTEUSE.md](POINTEUSE.md).

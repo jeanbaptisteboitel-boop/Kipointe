@@ -82,6 +82,9 @@ export const organisation = pgTable("organisation", {
   seuilEcartMinutes: integer("seuil_ecart_minutes").notNull().default(15),
   /** Les notifications sont aussi envoyées par e-mail (si un service d'envoi est configuré). */
   notificationsEmail: boolean("notifications_email").notNull().default(true),
+  /** Modes de pointage proposés sur les tablettes de l'entreprise. */
+  tabletteCode: boolean("tablette_code").notNull().default(true),
+  tabletteQr: boolean("tablette_qr").notNull().default(true),
   ...cree,
 });
 
@@ -100,6 +103,8 @@ export const salarie = pgTable(
     email: text("email"),
     /** Numéro du salarié dans la pointeuse (« ID utilisateur » de l'appareil). */
     pointeuseRef: text("pointeuse_ref"),
+    /** Empreinte du code personnel tapé sur la tablette (jamais le code lui-même). */
+    codePointageHash: text("code_pointage_hash"),
     /** Planning propre (temps partiel, horaires particuliers). Null = planning de l'organisation. */
     planning: jsonb("planning").$type<PlanningTravail>(),
     dateEntree: date("date_entree"),
@@ -113,7 +118,11 @@ export const salarie = pgTable(
     cpSoldeAu: date("cp_solde_au"),
     ...cree,
   },
-  (t) => [index("salarie_org_idx").on(t.organisationId), index("salarie_pointeuse_ref_idx").on(t.organisationId, t.pointeuseRef)],
+  (t) => [
+    index("salarie_org_idx").on(t.organisationId),
+    index("salarie_pointeuse_ref_idx").on(t.organisationId, t.pointeuseRef),
+    uniqueIndex("salarie_code_pointage_key").on(t.organisationId, t.codePointageHash),
+  ],
 );
 
 // ───────────────────────────── Comptes et sessions ─────────────────────────────
@@ -203,6 +212,58 @@ export const badgeage = pgTable(
     uniqueIndex("badgeage_idempotence_key").on(t.organisationId, t.pin, t.horodatageLocal),
     index("badgeage_etat_idx").on(t.organisationId, t.etat),
   ],
+);
+
+// ───────────────────────────── Tablettes ─────────────────────────────
+
+/**
+ * Tablette de pointage posée chez le client. Elle s'identifie par un jeton tiré à l'activation
+ * (seule son empreinte est gardée) ; `secretQr` signe le QR code tournant qu'elle affiche.
+ */
+export const tablette = pgTable(
+  "tablette",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisation.id, { onDelete: "cascade" }),
+    nom: text("nom").notNull(),
+    actif: boolean("actif").notNull().default(true),
+    jetonHash: text("jeton_hash"),
+    /** Code d'activation à usage unique, saisi une fois sur la tablette. */
+    activationHash: text("activation_hash"),
+    activationExpire: timestamp("activation_expire", { withTimezone: true, mode: "date" }),
+    secretQr: text("secret_qr").notNull(),
+    /** Codes faux tapés à la suite : au-delà d'un seuil, le clavier est bloqué un moment. */
+    echecs: integer("echecs").notNull().default(0),
+    bloqueeJusqua: timestamp("bloquee_jusqua", { withTimezone: true, mode: "date" }),
+    dernierContact: timestamp("dernier_contact", { withTimezone: true, mode: "date" }),
+    ...cree,
+  },
+  (t) => [uniqueIndex("tablette_jeton_key").on(t.jetonHash), uniqueIndex("tablette_activation_key").on(t.activationHash), index("tablette_org_idx").on(t.organisationId)],
+);
+
+/** Journal des pointages faits sur une tablette (code tapé ou QR code lu par le téléphone). */
+export const pointageTablette = pgTable(
+  "pointage_tablette",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisation.id, { onDelete: "cascade" }),
+    tabletteId: uuid("tablette_id").references(() => tablette.id, { onDelete: "set null" }),
+    salarieId: uuid("salarie_id")
+      .notNull()
+      .references(() => salarie.id, { onDelete: "cascade" }),
+    /** CODE ou QR. */
+    mode: text("mode").notNull(),
+    instant: timestamp("instant", { withTimezone: true, mode: "date" }).notNull(),
+    jour: date("jour").notNull(),
+    heure: text("heure").notNull(),
+    /** arrivee, depart, ou double_badge (rien d'écrit). */
+    typeApplique: text("type_applique").notNull(),
+  },
+  (t) => [index("pointage_tablette_tablette_idx").on(t.tabletteId, t.instant), index("pointage_tablette_salarie_idx").on(t.salarieId, t.instant)],
 );
 
 // ───────────────────────────── Pointage hebdomadaire ─────────────────────────────
@@ -348,3 +409,4 @@ export type StatutConge = (typeof statutCongeEnum.enumValues)[number];
 export type StatutSemaine = (typeof statutSemaineEnum.enumValues)[number];
 export type TypeNotification = (typeof typeNotificationEnum.enumValues)[number];
 export type Role = (typeof roleUtilisateurEnum.enumValues)[number];
+export type Tablette = typeof tablette.$inferSelect;

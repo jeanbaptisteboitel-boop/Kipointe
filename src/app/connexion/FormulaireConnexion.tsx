@@ -5,7 +5,7 @@ import { useState } from "react";
 import { IconeAlerte } from "@/components/icones";
 import { appelApi, ErreurApi } from "@/lib/ui/client";
 
-export function FormulaireConnexion() {
+export function FormulaireConnexion({ suite }: { suite: string | null }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
@@ -21,7 +21,8 @@ export function FormulaireConnexion() {
         method: "POST",
         json: { email, mot_de_passe: motDePasse },
       });
-      router.replace(r.suite);
+      // Mot de passe provisoire : le changement passe avant tout le reste.
+      router.replace(suite && r.suite !== "/compte" ? suite : r.suite);
       router.refresh();
     } catch (err) {
       setErreur(err instanceof ErreurApi ? err.message : "Connexion impossible.");
