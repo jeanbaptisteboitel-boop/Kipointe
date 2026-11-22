@@ -28,6 +28,7 @@ export interface JourPointage {
 
 export const SOURCE_POINTEUSE = "pointeuse";
 export const SOURCE_SAISIE = "manuel";
+export const SOURCE_TABLETTE = "tablette";
 
 export type TypePointage = "arrivee" | "depart" | "pause_debut" | "pause_fin";
 
@@ -194,7 +195,7 @@ export function normaliserPointagesSaisis(brut: unknown, source?: string): Point
     .map((p): Pointage => {
       const r: Pointage = { entree: normaliserHeure(p?.entree), sortie: normaliserHeure(p?.sortie) };
       if (source) r.source = source;
-      else if (p?.source === SOURCE_POINTEUSE || p?.source === SOURCE_SAISIE) r.source = p.source;
+      else if (p?.source === SOURCE_POINTEUSE || p?.source === SOURCE_SAISIE || p?.source === SOURCE_TABLETTE) r.source = p.source;
       if (p?.pause === true) r.pause = true;
       return r;
     })

@@ -69,6 +69,7 @@ npm run scaleway:verifier    # audit en lecture seule
 | `SCALEWAY_ACCESS_KEY_ID`, `SCALEWAY_SECRET_ACCESS_KEY`, `SCALEWAY_BUCKET` | bucket des justificatifs | oui |
 | `SCALEWAY_REGION` | `fr-par` | défaut `fr-par` |
 | `RESEND_API_KEY`, `EMAIL_EXPEDITEUR` | envoi des notifications par e-mail | non |
+| `OVH_SMS_APP_KEY`, `OVH_SMS_APP_SECRET`, `OVH_SMS_CONSUMER_KEY`, `OVH_SMS_COMPTE`, `OVH_SMS_EXPEDITEUR` | option « pointage par SMS » (OVHcloud) | non |
 
 `vercel.json` fixe la région `cdg1` et la tâche quotidienne `/api/cron/quotidien` à 03:00 UTC
 (point de la veille : absences, oublis de badge, écarts au contrat, pointeuses silencieuses).
@@ -78,7 +79,8 @@ npm run scaleway:verifier    # audit en lecture seule
 1. Espace éditeur → **Nouveau client** : remettre à l'administrateur ses identifiants provisoires.
 2. L'administrateur règle le **planning de l'entreprise** (Paramètres), crée ses **salariés** avec
    leur numéro dans la pointeuse, enregistre le **numéro de série** de l'appareil (Pointeuses) et
-   suit le guide de branchement affiché sur cette page.
+   suit le guide de branchement affiché sur cette page. Avec une **tablette** à la place : page
+   Tablettes, voir [TABLETTE.md](TABLETTE.md).
 3. Il ouvre l'**espace salarié** de chacun depuis sa fiche.
 
 Détail du protocole et de ses limites : [POINTEUSE.md](POINTEUSE.md).

@@ -15,7 +15,7 @@
  * redécoupée par semaine civile (lundi → dimanche).
  */
 import { lundiDe, plusJours } from "@/lib/temps/zone";
-import { minutesDepuisPointages, SOURCE_POINTEUSE, SOURCE_SAISIE, totalMinutes, type JourPointage, type Pointage } from "./paires";
+import { minutesDepuisPointages, SOURCE_POINTEUSE, SOURCE_SAISIE, SOURCE_TABLETTE, totalMinutes, type JourPointage, type Pointage } from "./paires";
 
 export interface SemaineEmploye {
   nom: string;
@@ -166,7 +166,7 @@ export function fusionnerImport(joursImportes: JourPointage[], joursExistants: J
       if (existant.pointages.some((p) => p.source === SOURCE_SAISIE)) saisiesRemplacees.push(existant.date);
       continue;
     }
-    const gardees = existant.pointages.filter((p) => p.source === SOURCE_SAISIE || p.source === SOURCE_POINTEUSE);
+    const gardees = existant.pointages.filter((p) => p.source === SOURCE_SAISIE || p.source === SOURCE_POINTEUSE || p.source === SOURCE_TABLETTE);
     if (!gardees.length) continue;
     const cible = jours.find((j) => j.date === existant.date)!;
     cible.pointages = [...gardees].sort((a, b) => cleTri(a) - cleTri(b));

@@ -8,11 +8,12 @@
  *   - HEURES_MANQUANTES / HEURES_SUP : la dernière semaine terminée s'écarte du contrat d'au
  *     moins le seuil de l'organisation ;
  *   - SEMAINE_A_VALIDER : la dernière semaine terminée attend la validation du salarié ;
- *   - POINTEUSE_SILENCIEUSE : un appareil actif n'a pas donné signe de vie depuis plus de 26 h ;
+ *   - POINTEUSE_SILENCIEUSE : un appareil actif (pointeuse ou tablette) n'a pas donné signe de vie
+ *     depuis plus de 26 h ;
  *   - BADGE_NON_RATTACHE : des badgeages attendent d'être rattachés à une fiche.
  *
  * Les constats tirés de l'ABSENCE de badgeage (absence à justifier, heures manquantes) ne sont
- * faits que si la pointeuse communique : une organisation qui importe son fichier CSV une fois
+ * faits que si la pointeuse ou la tablette communique, et pour les salariés qui s'en servent : une organisation qui importe son fichier CSV une fois
  * par semaine n'est pas inondée de fausses absences, et une panne de réseau donne une alerte
  * « pointeuse silencieuse », pas une absence par salarié.
  *
@@ -20,7 +21,7 @@
  */
 import { and, eq, isNotNull, lt, sql } from "drizzle-orm";
 import type { Db, Tx } from "@/db";
-import { badgeage, notification, organisation, pointeuse, session, type Organisation } from "@/db/schema";
+import { badgeage, notification, organisation, pointageTablette, pointeuse, session, tablette, type Organisation } from "@/db/schema";
 import { withBypass, withTenant } from "@/db/tenant";
 import { chargerSuiviEquipe, enPoste, nomComplet } from "@/lib/donnees";
 import { calculerHeuresJours, heuresAssimilees } from "@/lib/heures/hebdo";
@@ -31,6 +32,8 @@ import { frDate, frJourLong, jourLocal, lundiDe, plusJours } from "@/lib/temps/z
 
 /** Au-delà de ce silence, la pointeuse est considérée comme déconnectée. */
 export const SILENCE_MAX_MS = 26 * 3600 * 1000;
+/** Une tablette interroge le service toutes les dix secondes : cinq minutes sans nouvelles, elle est éteinte ou hors réseau. */
+export const SILENCE_TABLETTE_MS = 5 * 60 * 1000;
 
 export interface BilanQuotidien {
   organisations: number;
@@ -72,6 +75,35 @@ async function pointOrganisation(tx: Tx, org: Organisation, maintenant: Date): P
     });
   }
 
+  // ─── Tablettes ───
+  const tablettes = await tx
+    .select()
+    .from(tablette)
+    .where(and(eq(tablette.organisationId, org.id), eq(tablette.actif, true), isNotNull(tablette.jetonHash)));
+  let tabletteEnDirect = false;
+  for (const t of tablettes) {
+    const silence = maintenant.getTime() - (t.dernierContact ?? t.createdAt).getTime();
+    if (silence <= SILENCE_MAX_MS) {
+      tabletteEnDirect = true;
+      continue;
+    }
+    await creer({
+      organisationId: org.id,
+      destinataireSalarieId: null,
+      type: "POINTEUSE_SILENCIEUSE",
+      titre: "Tablette silencieuse",
+      message: `La tablette ${t.nom} n'a plus communiqué depuis le ${frDate(jourLocal(t.dernierContact ?? t.createdAt, org.timezone))}. Vérifiez qu'elle est allumée, branchée et reliée au Wi-Fi : personne ne peut y pointer.`,
+      lien: "/admin/tablettes",
+      cle: `silence-tablette:${t.id}:${lundiCourant}`,
+    });
+  }
+  // Salariés qui pointent sur tablette : ceux qui ont un code, ou qui y ont déjà pointé.
+  const habitues = tabletteEnDirect
+    ? new Set((await tx.selectDistinct({ id: pointageTablette.salarieId }).from(pointageTablette).where(eq(pointageTablette.organisationId, org.id))).map((r) => r.id))
+    : new Set<string>();
+  const suivi = (f: { id: string; pointeuseRef: string | null; codePointageHash: string | null }) =>
+    (enDirect && !!f.pointeuseRef) || (tabletteEnDirect && (!!f.codePointageHash || habitues.has(f.id)));
+
   const [orphelins] = await tx
     .select({ n: sql<number>`count(*)::int` })
     .from(badgeage)
@@ -100,7 +132,7 @@ async function pointOrganisation(tx: Tx, org: Organisation, maintenant: Date): P
       const jourPointe = s.semaines.flatMap((x) => x.jours).find((j) => j.date === hier);
       const [calc] = calculerHeuresJours({ jours: [hier], planning: s.planning, conges: s.conges, dateEntree: f.dateEntree, dateSortie: f.dateSortie, aujourdhui });
       const couvert = heuresAssimilees(calc!) + calc!.nonAutorisee > 0;
-      if (enDirect && f.pointeuseRef && calc!.prevu > 0 && !couvert && !jourPointe?.pointages.length) {
+      if (suivi(f) && calc!.prevu > 0 && !couvert && !jourPointe?.pointages.length) {
         const prevu = formatHeures(calc!.prevu);
         await creer({
           organisationId: org.id,
@@ -148,7 +180,7 @@ async function pointOrganisation(tx: Tx, org: Organisation, maintenant: Date): P
     // Dernière semaine terminée : écart au contrat, validation.
     const semaine = s.semainesAffichees.find((x) => x.lundi === lundiDernier);
     const ligne = s.semaines.find((x) => x.semaineDebut === lundiDernier);
-    if (semaine && semaine.terminee && !semaine.horsCompteur && semaine.prevuMinutes + semaine.realiseMinutes > 0 && (ligne || (enDirect && f.pointeuseRef))) {
+    if (semaine && semaine.terminee && !semaine.horsCompteur && semaine.prevuMinutes + semaine.realiseMinutes > 0 && (ligne || (suivi(f)))) {
       const contrat = formatHeures(dureeHebdo(s.planning));
       const du = frDate(lundiDernier);
       if (semaine.ecartMinutes <= -org.seuilEcartMinutes) {

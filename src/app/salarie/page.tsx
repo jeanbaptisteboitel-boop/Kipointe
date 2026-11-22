@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { HeuresGraphique } from "@/components/HeuresGraphique";
+import { Installer } from "@/components/Installer";
 import { ListeNotifications } from "@/components/ListeNotifications";
 import { Chiffre, Ecart, EnTete, Section } from "@/components/ui";
 import { formatJours } from "@/lib/conges/types";
@@ -12,7 +13,7 @@ import { frDate, frJourLong, lundiDe } from "@/lib/temps/zone";
 export const metadata = { title: "Mon espace" };
 
 export default async function AccueilSalarie() {
-  const { u, org, aujourdhui, suivi, notifications } = await chargerEspaceSalarie();
+  const { u, org, aujourdhui, suivi, notifications, rappels } = await chargerEspaceSalarie();
   const { compteur } = suivi;
   const cp = soldeCongesPayes(suivi.fiche, suivi.conges);
   const semaineCourante = suivi.semaines.find((s) => s.semaineDebut === lundiDe(aujourdhui));
@@ -23,6 +24,17 @@ export default async function AccueilSalarie() {
   return (
     <>
       <EnTete kicker={frJourLong(aujourdhui)} titre={`Bonjour ${u.prenom}`} />
+
+      <Installer />
+
+      {rappels.map((r) => (
+        <div key={r.id} className="encart-alerte mb-4 text-sm">
+          <strong>
+            {r.intitule} — {r.quand}
+          </strong>
+          {r.precision && <span className="block">{r.precision}</span>}
+        </div>
+      ))}
 
       {aValider.length > 0 && (
         <div className="encart-alerte mb-6 flex flex-wrap items-center justify-between gap-3 text-sm">

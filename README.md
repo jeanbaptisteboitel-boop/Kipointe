@@ -18,6 +18,9 @@ elle transmet d'elle-même ses badgeages à Kipointe, qui en tire le suivi des h
 - **Pointeuse** : protocole ADMS / iClock (`/iclock/…`), liste blanche des numéros de série,
   idempotence, double badge, sens déduit ou alterné, badgeages « non rattachés » repris
   rétroactivement ; import du fichier CSV de l'appareil en repli. → [docs/POINTEUSE.md](docs/POINTEUSE.md)
+- **Tablette de pointage** : une tablette Android affiche en permanence l'écran de pointage ; le
+  salarié tape son code personnel ou vise le QR code tournant avec son téléphone.
+  → [docs/TABLETTE.md](docs/TABLETTE.md)
 - **Planning** : heures prévues par jour, pour l'entreprise et par salarié (temps partiel). Sa
   somme est la durée contractuelle à laquelle les heures sont comparées.
 - **Compteur d'heures** : écart hebdomadaire = réalisé − prévu ; congés, maladie, formation et jours

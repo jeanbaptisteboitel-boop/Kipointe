@@ -5,6 +5,7 @@ import { lire } from "@/lib/acces";
 import { exigerSalarie } from "@/lib/auth/session";
 import { aujourdhuiDe, chargerOrganisation, chargerSuiviSalarie } from "@/lib/donnees";
 import { listerNotifications } from "@/lib/notifications/service";
+import { prochainsRendezVous } from "@/lib/tablette/fiche";
 
 /** Tout ce que l'espace salarié affiche : la fiche du salarié connecté, et elle seule. */
 export async function chargerEspaceSalarie(nbSemaines = 12) {
@@ -14,7 +15,7 @@ export async function chargerEspaceSalarie(nbSemaines = 12) {
     const [fiche] = await tx.select().from(salarie).where(eq(salarie.id, u.salarieId));
     if (!fiche) return null;
     const aujourdhui = aujourdhuiDe(org);
-    return { org, aujourdhui, suivi: await chargerSuiviSalarie(tx, org, fiche, aujourdhui, nbSemaines), notifications: await listerNotifications(tx, u.organisationId, fiche.id, 100) };
+    return { org, aujourdhui, suivi: await chargerSuiviSalarie(tx, org, fiche, aujourdhui, nbSemaines), notifications: await listerNotifications(tx, u.organisationId, fiche.id, 100), rappels: await prochainsRendezVous(tx, fiche.id, aujourdhui, 5) };
   });
   if (!d) redirect("/compte");
   return { u, ...d };
