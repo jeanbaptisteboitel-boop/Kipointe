@@ -1,0 +1,5 @@
+# Produits par XcodeGen et Xcode
+*.xcodeproj/
+Config/
+build/
+DerivedData/
