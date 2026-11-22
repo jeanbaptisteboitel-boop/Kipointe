@@ -14,7 +14,15 @@ interface Etat {
   dernier: { id: string; prenom: string; sens: Sens; heure: string } | null;
   bloqueeMs: number;
 }
-type Retour = { ton: "ok" | "neutre" | "erreur"; titre: string; detail: string };
+interface Fiche {
+  rappels: { id: string; intitule: string; quand: string; precision: string | null }[];
+  nonLues: number;
+  conges: { solde: string; enAttente: string | null } | null;
+  compteur: string;
+  semaine: string;
+  jours: { jour: string; prevu: string; fait: string; detail: string }[];
+}
+type Retour = { ton: "ok" | "neutre" | "erreur"; titre: string; detail: string; fiche?: Fiche | null };
 
 const PERIODE_MS = 10_000;
 
@@ -85,16 +93,23 @@ export function EcranTablette() {
   const minuterie = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sortie = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [consulte, setConsulte] = useState(false);
+  const fermer = useCallback(() => {
+    if (minuterie.current) clearTimeout(minuterie.current);
+    setRetour(null);
+    setConsulte(false);
+  }, []);
   const afficher = useCallback((r: Retour, duree = 4500) => {
     setRetour(r);
+    setConsulte(false);
     try {
       natif()?.bip?.(r.ton !== "erreur");
     } catch {
       // Sans l'application, pas de son : l'écran suffit.
     }
     if (minuterie.current) clearTimeout(minuterie.current);
-    minuterie.current = setTimeout(() => setRetour(null), duree);
-  }, []);
+    minuterie.current = setTimeout(fermer, duree);
+  }, [fermer]);
 
   const rafraichir = useCallback(
     async (silencieux = false) => {
@@ -139,8 +154,9 @@ export function EcranTablette() {
     if (code.length < 4 || envoi || bloque) return;
     setEnvoi(true);
     try {
-      const r = await appelApi<{ prenom: string; sens: Sens; heure: string }>("/api/tablette/pointer", { method: "POST", json: { code } });
-      afficher(retourDe(r));
+      const r = await appelApi<{ prenom: string; sens: Sens; heure: string; fiche: Fiche | null }>("/api/tablette/pointer", { method: "POST", json: { code } });
+      // Un rappel à lire laisse l'écran affiché plus longtemps.
+      afficher({ ...retourDe(r), fiche: r.fiche }, r.fiche && (r.fiche.rappels.length || r.fiche.nonLues) ? 12_000 : 7000);
       await rafraichir(true);
     } catch (err) {
       if (err instanceof ErreurApi && err.code === "CLAVIER_BLOQUE") {
@@ -250,15 +266,94 @@ export function EcranTablette() {
 
       {retour && (
         <div
-          className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-8 text-center"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-4 overflow-y-auto p-8 text-center"
           style={{ background: retour.ton === "ok" ? "var(--success)" : retour.ton === "erreur" ? "var(--danger)" : "var(--navy)", color: "#fff" }}
           role="alert"
-          onClick={() => setRetour(null)}
+          onClick={retour.fiche ? undefined : fermer}
         >
-          <div className="font-extrabold" style={{ fontSize: "clamp(36px, 7vw, 68px)", letterSpacing: "-0.02em" }}>
+          <div className="font-extrabold" style={{ fontSize: consulte ? 34 : "clamp(36px, 7vw, 68px)", letterSpacing: "-0.02em" }}>
             {retour.titre}
           </div>
           <div className="text-2xl font-semibold">{retour.detail}</div>
+
+          {retour.fiche && !consulte && (
+            <>
+              {retour.fiche.rappels.map((r) => (
+                <div key={r.id} className="w-full max-w-[620px] rounded-2xl p-4 text-left" style={{ background: "#fff", color: "var(--ink)" }}>
+                  <div className="kicker">Rappel</div>
+                  <div className="text-xl font-extrabold">
+                    {r.intitule} — <span className="first-letter:uppercase">{r.quand}</span>
+                  </div>
+                  {r.precision && <div className="mt-1 text-[15px]" style={{ color: "var(--muted)" }}>{r.precision}</div>}
+                </div>
+              ))}
+              {retour.fiche.nonLues > 0 && (
+                <div className="w-full max-w-[620px] rounded-2xl p-4 text-left text-lg font-bold" style={{ background: "rgba(0,0,0,0.22)" }}>
+                  {retour.fiche.nonLues === 1 ? "1 notification vous attend" : `${retour.fiche.nonLues} notifications vous attendent`} dans votre espace salarié, sur votre téléphone.
+                </div>
+              )}
+            </>
+          )}
+
+          {retour.fiche && consulte && (
+            <div className="w-full max-w-[720px] rounded-2xl p-5 text-left" style={{ background: "#fff", color: "var(--ink)" }}>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                {[
+                  ["Congés payés", retour.fiche.conges ? retour.fiche.conges.solde : "—", retour.fiche.conges ? (retour.fiche.conges.enAttente ? `restants · ${retour.fiche.conges.enAttente} en attente` : "restants") : "tenu par votre employeur"],
+                  ["Cette semaine", retour.fiche.semaine, "pointées"],
+                  ["Compteur d'heures", retour.fiche.compteur, "par rapport au contrat"],
+                ].map(([l, v, d]) => (
+                  <div key={l} className="rounded-xl p-3" style={{ background: "var(--bg-portal)" }}>
+                    <div className="kicker">{l}</div>
+                    <div className="tabnum text-[26px] font-extrabold">{v}</div>
+                    <div className="text-[12px]" style={{ color: "var(--muted)" }}>{d}</div>
+                  </div>
+                ))}
+              </div>
+              <table className="mt-4 w-full text-[15px]">
+                <thead>
+                  <tr className="kicker text-left">
+                    <th className="py-1 font-normal">Jour</th>
+                    <th className="py-1 font-normal">Prévu</th>
+                    <th className="py-1 font-normal">Pointé</th>
+                    <th className="py-1 font-normal">Détail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {retour.fiche.jours.map((j) => (
+                    <tr key={j.jour} style={{ borderTop: "1px solid var(--line-portal)" }}>
+                      <td className="py-2 font-bold first-letter:uppercase">{j.jour}</td>
+                      <td className="tabnum py-2">{j.prevu}</td>
+                      <td className="tabnum py-2 font-bold">{j.fait}</td>
+                      <td className="tabnum py-2" style={{ color: "var(--muted)" }}>{j.detail}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {retour.fiche && (
+            <div className="mt-2 flex flex-wrap justify-center gap-3">
+              {!consulte && (
+                <button
+                  type="button"
+                  className="h-[60px] rounded-full px-7 text-lg font-bold"
+                  style={{ background: "rgba(0,0,0,0.25)", color: "#fff", border: "1px solid rgba(255,255,255,0.5)" }}
+                  onClick={() => {
+                    setConsulte(true);
+                    if (minuterie.current) clearTimeout(minuterie.current);
+                    minuterie.current = setTimeout(fermer, 30_000);
+                  }}
+                >
+                  Mes heures et mes congés
+                </button>
+              )}
+              <button type="button" className="h-[60px] rounded-full px-9 text-lg font-bold" style={{ background: "#fff", color: "var(--ink)" }} onClick={fermer}>
+                Terminer
+              </button>
+            </div>
+          )}
         </div>
       )}
     </main>

@@ -14,7 +14,8 @@ const jetbrains = localFont({ src: "../polices/jetbrains-mono-latin.woff2", weig
 export const metadata: Metadata = {
   title: { default: "Kipointe", template: "%s · Kipointe" },
   description: "Suivi du temps de travail relié à la pointeuse de l'entreprise : pointages, plannings, congés et compteur d'heures. Édité par OMNIUP.",
-  icons: { icon: "/icons/icon.svg", apple: "/icons/icon.svg" },
+  icons: { icon: "/icons/icon.svg", apple: "/icons/apple-touch-icon.png" },
+  appleWebApp: { capable: true, title: "Kipointe", statusBarStyle: "default" },
   applicationName: "Kipointe",
 };
 

@@ -158,6 +158,7 @@ export async function retirerCodeSalarie(tx: Tx, salarieId: string): Promise<voi
 // ─── Pointage ───
 
 export interface PointageFait {
+  salarieId: string;
   prenom: string;
   sens: SensPointage;
   heure: string;
@@ -217,7 +218,7 @@ export async function pointerParCode(db: Db, t: TabletteConnue, codeSaisi: unkno
     }
     const r = await pointerSalarie(tx, { organisationId: t.organisationId, tabletteId: t.id, salarieId: fiche.id, mode: "CODE", fuseau: t.fuseau, maintenant });
     await tx.update(tablette).set({ echecs: 0, bloqueeJusqua: null, dernierContact: maintenant }).where(eq(tablette.id, t.id));
-    return { ok: true, prenom: fiche.prenom, ...r } as const;
+    return { ok: true, salarieId: fiche.id, prenom: fiche.prenom, ...r } as const;
   });
 }
 
@@ -243,12 +244,12 @@ export async function pointerParQr(db: Db, p: { jeton: unknown; organisationId: 
     const [fiche] = await tx.select({ id: salarie.id, prenom: salarie.prenom, actif: salarie.actif, dateSortie: salarie.dateSortie }).from(salarie).where(eq(salarie.id, p.salarieId));
     if (!fiche || !enPoste(fiche, horodatageLocal(maintenant, t.fuseau).date)) return { ok: false, raison: "SALARIE_SORTI" } as const;
     const r = await pointerSalarie(tx, { organisationId: t.organisationId, tabletteId: t.id, salarieId: fiche.id, mode: "QR", fuseau: t.fuseau, maintenant });
-    return { ok: true, tablette: t.nom, prenom: fiche.prenom, ...r } as const;
+    return { ok: true, tablette: t.nom, salarieId: fiche.id, prenom: fiche.prenom, ...r } as const;
   });
 }
 
 /** Dernier pointage fait sur la tablette : elle l'affiche, y compris quand il vient d'un téléphone. */
-export async function dernierPointage(db: Db, t: TabletteConnue): Promise<({ id: string; mode: string } & PointageFait) | null> {
+export async function dernierPointage(db: Db, t: TabletteConnue): Promise<({ id: string; mode: string } & Omit<PointageFait, "salarieId">) | null> {
   return withTenant(db, t.organisationId, async (tx) => {
     const [d] = await tx
       .select({ id: pointageTablette.id, mode: pointageTablette.mode, prenom: salarie.prenom, sens: pointageTablette.typeApplique, heure: pointageTablette.heure })

@@ -17,6 +17,22 @@ Réglées par l'entreprise, page **Tablettes** ; les deux peuvent être ouvertes
 Le sens alterne : premier pointage du jour = arrivée, le suivant = départ, et ainsi de suite. Deux
 pointages à moins de deux minutes d'écart : le second est ignoré.
 
+## Ce que le salarié voit en pointant
+
+- **Par code, sur la tablette** : la confirmation, ses rendez-vous des trente prochains jours
+  (médecine du travail, entretien… saisis par l'administrateur sur sa fiche) et le nombre de
+  notifications qui l'attendent. Un bouton « Mes heures et mes congés » montre son solde de congés
+  payés, son compteur d'heures et ses sept derniers jours (prévu, pointé, détail). L'écran se
+  referme seul.
+- **Par QR code, sur son téléphone** : la confirmation, ses rendez-vous et un lien vers ses
+  notifications. La tablette n'affiche alors que la confirmation.
+
+## Sur le téléphone du salarié
+
+L'espace salarié s'installe sur l'écran d'accueil et s'ouvre comme une application, sur iPhone
+(Safari → Partager → « Sur l'écran d'accueil ») comme sur Android (bouton « Installer »). Ce n'est
+pas une application des magasins Apple ou Google : rien à télécharger depuis un store.
+
 ## Mise en service
 
 1. Installer l'**application Android Kipointe** sur la tablette ([android/README.md](../android/README.md)) :

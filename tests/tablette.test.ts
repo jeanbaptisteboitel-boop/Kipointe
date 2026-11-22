@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as schema from "@/db/schema";
 import { withBypass } from "@/db/tenant";
+import { fichePointage } from "@/lib/tablette/fiche";
 import { DUREE_PAS_MS, jetonQr, lireJetonQr, normaliserCode, verifierJetonQr } from "@/lib/tablette/jeton";
 import { activerTablette, creerTablette, definirCodeSalarie, pointerParCode, pointerParQr, renouvelerActivation, trouverTablette, type TabletteConnue } from "@/lib/tablette/service";
 import { creerFixture, creerOrganisation, dansOrg, type Fixture } from "./helpers/db";
@@ -89,6 +90,24 @@ describe("tablette", () => {
     const r = await pointerParQr(fx.db, { jeton: jetonQr(t.id, t.secretQr, plus(400)), organisationId: fx.organisation.id, salarieId: fx.salaries[1]!.id }, plus(400));
     expect(r).toMatchObject({ ok: false, raison: "MODE_FERME" });
     await withBypass(fx.db, (tx) => tx.update(schema.organisation).set({ tabletteCode: true, tabletteQr: true }).where(eq(schema.organisation.id, fx.organisation.id)));
+  });
+
+  it("prépare les rappels et les chiffres montrés au pointage", async () => {
+    const s1 = fx.salaries[0]!.id;
+    await dansOrg(fx, async (tx) => {
+      await tx.insert(schema.rendezVous).values([
+        { organisationId: fx.organisation.id, salarieId: s1, intitule: "Visite médicale", jour: "2026-11-17", heure: "09:30", precision: "Centre de Rouen" },
+        { organisationId: fx.organisation.id, salarieId: s1, intitule: "Trop loin", jour: "2027-03-01" },
+        { organisationId: fx.organisation.id, salarieId: s1, intitule: "Passé", jour: "2026-11-10" },
+        { organisationId: fx.organisation.id, salarieId: fx.salaries[1]!.id, intitule: "Celui d'un collègue", jour: "2026-11-17" },
+      ]);
+      await tx.update(schema.salarie).set({ cpSoldeJours: 12.5, cpSoldeAu: "2026-06-01" }).where(eq(schema.salarie.id, s1));
+    });
+    const f = (await dansOrg(fx, (tx) => fichePointage(tx, fx.organisation.id, s1, plus(600))))!;
+    expect(f.rappels).toEqual([{ id: expect.any(String), intitule: "Visite médicale", quand: "demain à 09 h 30", precision: "Centre de Rouen" }]);
+    expect(f.conges).toEqual({ solde: expect.stringContaining("12,5"), enAttente: null });
+    expect(f.jours[0]).toMatchObject({ jour: "Aujourd'hui", prevu: expect.stringContaining("7") });
+    expect(f.jours[0]!.detail).toContain("08:02 → 12:02");
   });
 
   it("donne des codes distincts et coupe la tablette quand son activation est renouvelée", async () => {

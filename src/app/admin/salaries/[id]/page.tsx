@@ -1,13 +1,16 @@
-import { eq } from "drizzle-orm";
+import { and, asc, eq, gte } from "drizzle-orm";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FormulaireConge, ListeConges } from "@/components/Conges";
 import { BoutonAcces, FormulaireCompteur, FormulairePlanning, FormulaireSalarie, FormulaireSoldeConges } from "@/components/Formulaires";
 import { HeuresGraphique } from "@/components/HeuresGraphique";
+import { supprimerRendezVous } from "@/app/actions/rendezvous";
+import { BoutonAction } from "@/components/client";
+import { FormulaireRendezVous } from "@/components/RendezVous";
 import { PointagesSemaines } from "@/components/PointagesSemaines";
 import { TableauSemaines } from "@/components/TableauSemaines";
 import { Chiffre, Ecart, EnTete, Section } from "@/components/ui";
-import { salarie, utilisateur } from "@/db/schema";
+import { rendezVous, salarie, utilisateur } from "@/db/schema";
 import { lire } from "@/lib/acces";
 import { exigerAdmin } from "@/lib/auth/session";
 import { formatJours } from "@/lib/conges/types";
@@ -15,7 +18,7 @@ import { aujourdhuiDe, chargerOrganisation, chargerSuiviSalarie, nomComplet, sol
 import { journaliserAcces } from "@/lib/journal";
 import { formatEcart } from "@/lib/pointage/paires";
 import { dureeHebdo, formatHeures, planningOrganisation, resumePlanning } from "@/lib/planning";
-import { frDate, lundisJusqua } from "@/lib/temps/zone";
+import { frDate, frJourLong, lundisJusqua } from "@/lib/temps/zone";
 
 export const metadata = { title: "Fiche salarié" };
 
@@ -31,7 +34,8 @@ export default async function FicheSalarie({ params }: { params: Promise<{ id: s
     const suivi = await chargerSuiviSalarie(tx, org, fiche, aujourdhui, 12);
     const [compte] = await tx.select({ id: utilisateur.id, actif: utilisateur.actif }).from(utilisateur).where(eq(utilisateur.salarieId, id));
     await journaliserAcces(tx, { organisationId: u.organisationId, utilisateurId: u.id, salarieId: id, action: "FICHE_CONSULTEE" });
-    return { org, aujourdhui, suivi, compte };
+    const rdv = await tx.select().from(rendezVous).where(and(eq(rendezVous.salarieId, id), gte(rendezVous.jour, aujourdhui))).orderBy(asc(rendezVous.jour), asc(rendezVous.heure));
+    return { org, aujourdhui, suivi, compte, rdv };
   });
   if (!d) notFound();
   const { suivi } = d;
@@ -69,6 +73,25 @@ export default async function FicheSalarie({ params }: { params: Promise<{ id: s
 
         <Section titre="Pointages" aide="Badgeages reçus de la pointeuse. Corrigez un oubli ou ajoutez une journée : le salarié est prévenu et revalide sa semaine.">
           <PointagesSemaines semaines={semaines} mode="admin" salarieId={f.id} aujourdhui={d.aujourdhui} />
+        </Section>
+
+        <Section titre="Rendez-vous à rappeler" aide="Médecine du travail, entretien avec la direction… Le salarié en est averti à chaque pointage sur la tablette, à partir de trente jours avant, et dans son espace.">
+          {d.rdv.length > 0 && (
+            <ul className="mb-5 flex flex-col gap-2">
+              {d.rdv.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg px-4 py-3" style={{ background: "var(--bg-portal)" }}>
+                  <span>
+                    <span className="font-bold">{r.intitule}</span> — <span className="tabnum">{frJourLong(r.jour)}{r.heure ? ` à ${r.heure}` : ""}</span>
+                    {r.precision && <span className="block text-[13px]" style={{ color: "var(--muted)" }}>{r.precision}</span>}
+                  </span>
+                  <BoutonAction action={supprimerRendezVous.bind(null, r.id)} confirmer="Supprimer ce rendez-vous ?">
+                    Supprimer
+                  </BoutonAction>
+                </li>
+              ))}
+            </ul>
+          )}
+          <FormulaireRendezVous salarieId={f.id} aujourdhui={d.aujourdhui} />
         </Section>
 
         <Section titre="Congés et absences" actions={<FormulaireConge mode="admin" salarieId={f.id} />}>

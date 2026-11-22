@@ -266,6 +266,27 @@ export const pointageTablette = pgTable(
   (t) => [index("pointage_tablette_tablette_idx").on(t.tabletteId, t.instant), index("pointage_tablette_salarie_idx").on(t.salarieId, t.instant)],
 );
 
+/** Rendez-vous d'un salarié (médecine du travail, entretien…) : rappelé au pointage et dans son espace. */
+export const rendezVous = pgTable(
+  "rendez_vous",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organisationId: uuid("organisation_id")
+      .notNull()
+      .references(() => organisation.id, { onDelete: "cascade" }),
+    salarieId: uuid("salarie_id")
+      .notNull()
+      .references(() => salarie.id, { onDelete: "cascade" }),
+    intitule: text("intitule").notNull(),
+    jour: date("jour").notNull(),
+    /** « HH:MM », facultatif. */
+    heure: text("heure"),
+    precision: text("precision"),
+    ...cree,
+  },
+  (t) => [index("rendez_vous_salarie_idx").on(t.salarieId, t.jour)],
+);
+
 // ───────────────────────────── Pointage hebdomadaire ─────────────────────────────
 
 export const pointageSemaine = pgTable(
@@ -410,3 +431,4 @@ export type StatutSemaine = (typeof statutSemaineEnum.enumValues)[number];
 export type TypeNotification = (typeof typeNotificationEnum.enumValues)[number];
 export type Role = (typeof roleUtilisateurEnum.enumValues)[number];
 export type Tablette = typeof tablette.$inferSelect;
+export type RendezVous = typeof rendezVous.$inferSelect;

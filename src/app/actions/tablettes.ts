@@ -3,6 +3,8 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db";
+import { withTenant } from "@/db/tenant";
+import { fichePointage, type Rappel } from "@/lib/tablette/fiche";
 import { organisation, tablette } from "@/db/schema";
 import { ErreurMetier, actionAdmin, type Resultat } from "@/lib/actions";
 import { utilisateurCourant } from "@/lib/auth/session";
@@ -72,7 +74,7 @@ const REFUS: Record<string, string> = {
 };
 
 /** Pointage du salarié connecté, sur présentation du jeton lu dans le QR code de la tablette. */
-export async function pointerAvecQr(jeton: string): Promise<Resultat<{ prenom: string; sens: string; heure: string; tablette: string }>> {
+export async function pointerAvecQr(jeton: string): Promise<Resultat<{ prenom: string; sens: string; heure: string; tablette: string; rappels: Rappel[]; nonLues: number }>> {
   const u = await utilisateurCourant();
   if (!u) return { ok: false, erreur: "Session expirée : reconnectez-vous." };
   if (u.role === "PLATEFORME" || !u.salarieId) return { ok: false, erreur: "Ce compte n'est rattaché à aucune fiche salarié : il ne peut pas pointer." };
@@ -80,7 +82,8 @@ export async function pointerAvecQr(jeton: string): Promise<Resultat<{ prenom: s
     const r = await pointerParQr(getDb(), { jeton, organisationId: u.organisationId, salarieId: u.salarieId });
     if (!r.ok) return { ok: false, erreur: REFUS[r.raison] ?? "Pointage impossible." };
     revalidatePath("/salarie", "layout");
-    return { ok: true, prenom: r.prenom, sens: r.sens, heure: r.heure, tablette: r.tablette };
+    const fiche = await withTenant(getDb(), u.organisationId, (tx) => fichePointage(tx, u.organisationId, r.salarieId)).catch(() => null);
+    return { ok: true, prenom: r.prenom, sens: r.sens, heure: r.heure, tablette: r.tablette, rappels: fiche?.rappels ?? [], nonLues: fiche?.nonLues ?? 0 };
   } catch (e) {
     console.error("[pointage QR] erreur inattendue", e);
     return { ok: false, erreur: "Erreur interne, réessayez." };
