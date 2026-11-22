@@ -70,6 +70,11 @@ npm run scaleway:verifier    # audit en lecture seule
 | `SCALEWAY_REGION` | `fr-par` | défaut `fr-par` |
 | `RESEND_API_KEY`, `EMAIL_EXPEDITEUR` | envoi des notifications par e-mail | non |
 
+> **Aperçus et base de données.** Les migrations ne sont appliquées qu'au déploiement de production.
+> Un aperçu (branche, pull request) n'y touche pas : s'il partageait la base de production, une
+> migration qui retire une colonne casserait le service avant la fusion. Pour des aperçus complets,
+> donnez-leur une base à eux (branche Neon) dans les variables « Preview », avec `MIGRER_APERCUS=1`.
+
 `vercel.json` fixe la région `cdg1` et la tâche quotidienne `/api/cron/quotidien` à 03:00 UTC
 (point de la veille : absences, oublis de badge, écarts au contrat, pointeuses silencieuses).
 
