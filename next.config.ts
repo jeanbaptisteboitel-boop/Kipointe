@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
       },
+      {
+        // Seul l'écran de la tablette peut ouvrir l'appareil photo (photo au pointage, si l'entreprise l'active).
+        source: "/tablette",
+        headers: [{ key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" }],
+      },
     ];
   },
 };

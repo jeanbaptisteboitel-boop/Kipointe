@@ -1,5 +1,6 @@
 package com.omniup.pointage
 
+import android.Manifest
 import android.app.AlertDialog
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
@@ -7,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -14,6 +16,8 @@ import android.os.Looper
 import android.text.InputType
 import android.view.WindowManager
 import android.webkit.CookieManager
+import android.webkit.PermissionRequest
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -47,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
     private val relance = Handler(Looper.getMainLooper())
     private var enPanne = false
+    private var demandeCamera: PermissionRequest? = null
 
     private fun adresse(): String? = prefs.getString("adresse", null)
     private fun pageTablette(): String = "${adresse()}/tablette"
@@ -98,6 +103,8 @@ class MainActivity : AppCompatActivity() {
             val admin = ComponentName(this, AdminReceiver::class.java)
             dpm.setLockTaskPackages(admin, arrayOf(packageName))
             dpm.setLockTaskFeatures(admin, DevicePolicyManager.LOCK_TASK_FEATURE_NONE)
+            // Appareil photo accordé sans dialogue : aucune question à l'écran d'une tablette verrouillée.
+            dpm.setPermissionGrantState(admin, packageName, Manifest.permission.CAMERA, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
             // L'application devient l'écran d'accueil : elle revient même si le système la ferme.
             dpm.addPersistentPreferredActivity(
                 admin,
@@ -119,6 +126,7 @@ class MainActivity : AppCompatActivity() {
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
+            mediaPlaybackRequiresUserGesture = false // aperçu de l'appareil photo sans toucher l'écran
             cacheMode = WebSettings.LOAD_DEFAULT
             allowContentAccess = false
             textZoom = 100 // la taille de police du système ne doit pas déformer l'écran
@@ -129,6 +137,21 @@ class MainActivity : AppCompatActivity() {
         // Le jeton de la tablette est un cookie : il doit survivre aux redémarrages.
         CookieManager.getInstance().setAcceptCookie(true)
         webView.addJavascriptInterface(WebBridge(this), "KipointeNative")
+        // La page demande l'appareil photo quand l'entreprise veut une photo au pointage.
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(demande: PermissionRequest) {
+                val hote = adresse()?.let { Uri.parse(it).host }
+                val video = demande.resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)
+                if (!video || demande.origin.host != hote) {
+                    demande.deny()
+                } else if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    demande.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
+                } else {
+                    demandeCamera = demande
+                    requestPermissions(arrayOf(Manifest.permission.CAMERA), 1)
+                }
+            }
+        }
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 // On ne quitte jamais le service : aucun lien extérieur ne s'ouvre.
@@ -235,6 +258,14 @@ class MainActivity : AppCompatActivity() {
             dpm.clearPackagePersistentPreferredActivities(ComponentName(this, AdminReceiver::class.java), packageName)
         }
         finishAndRemoveTask()
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != 1) return
+        val demande = demandeCamera ?: return
+        demandeCamera = null
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) demande.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) else demande.deny()
     }
 
     fun recharger() {

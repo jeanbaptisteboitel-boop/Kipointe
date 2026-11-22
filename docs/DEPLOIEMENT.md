@@ -69,7 +69,6 @@ npm run scaleway:verifier    # audit en lecture seule
 | `SCALEWAY_ACCESS_KEY_ID`, `SCALEWAY_SECRET_ACCESS_KEY`, `SCALEWAY_BUCKET` | bucket des justificatifs | oui |
 | `SCALEWAY_REGION` | `fr-par` | défaut `fr-par` |
 | `RESEND_API_KEY`, `EMAIL_EXPEDITEUR` | envoi des notifications par e-mail | non |
-| `OVH_SMS_APP_KEY`, `OVH_SMS_APP_SECRET`, `OVH_SMS_CONSUMER_KEY`, `OVH_SMS_COMPTE`, `OVH_SMS_EXPEDITEUR` | option « pointage par SMS » (OVHcloud) | non |
 
 `vercel.json` fixe la région `cdg1` et la tâche quotidienne `/api/cron/quotidien` à 03:00 UTC
 (point de la veille : absences, oublis de badge, écarts au contrat, pointeuses silencieuses).

@@ -10,7 +10,7 @@ interface Etat {
   entreprise: string;
   fuseau: string;
   modeCode: boolean;
-  sms: { id: string; nom: string }[] | null;
+  photo: boolean;
   qr: { svg: string; resteMs: number } | null;
   dernier: { id: string; prenom: string; sens: Sens; heure: string } | null;
   bloqueeMs: number;
@@ -59,6 +59,51 @@ function useEcranAllume() {
   }, []);
 }
 
+/**
+ * Appareil photo de la tablette, allumé seulement si l'entreprise demande une photo au pointage.
+ * `prendre()` rend l'image du moment en JPEG réduit, ou null si l'appareil photo n'est pas disponible.
+ */
+function useAppareilPhoto(actif: boolean) {
+  const video = useRef<HTMLVideoElement | null>(null);
+  const [pret, setPret] = useState(false);
+  useEffect(() => {
+    if (!actif) return;
+    let flux: MediaStream | null = null;
+    let annule = false;
+    navigator.mediaDevices
+      ?.getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false })
+      .then((f) => {
+        if (annule) return f.getTracks().forEach((p) => p.stop());
+        flux = f;
+        if (video.current) {
+          video.current.srcObject = f;
+          void video.current.play().catch(() => undefined);
+        }
+        setPret(true);
+      })
+      .catch(() => setPret(false));
+    return () => {
+      annule = true;
+      flux?.getTracks().forEach((p) => p.stop());
+      setPret(false);
+    };
+  }, [actif]);
+
+  const prendre = useCallback((): string | null => {
+    const v = video.current;
+    if (!v || !v.videoWidth) return null;
+    const largeur = 480;
+    const toile = document.createElement("canvas");
+    toile.width = largeur;
+    toile.height = Math.round((v.videoHeight / v.videoWidth) * largeur);
+    const dessin = toile.getContext("2d");
+    if (!dessin) return null;
+    dessin.drawImage(v, 0, 0, toile.width, toile.height);
+    return toile.toDataURL("image/jpeg", 0.6);
+  }, []);
+  return { video, pret, prendre };
+}
+
 function Horloge({ fuseau }: { fuseau: string }) {
   const [t, setT] = useState<Date | null>(null);
   useEffect(() => {
@@ -95,7 +140,6 @@ export function EcranTablette() {
   const sortie = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [consulte, setConsulte] = useState(false);
-  const [choixSms, setChoixSms] = useState(false);
   const fermer = useCallback(() => {
     if (minuterie.current) clearTimeout(minuterie.current);
     setRetour(null);
@@ -112,6 +156,8 @@ export function EcranTablette() {
     if (minuterie.current) clearTimeout(minuterie.current);
     minuterie.current = setTimeout(fermer, duree);
   }, [fermer]);
+
+  const appareil = useAppareilPhoto(!!etat?.photo && !!etat?.modeCode);
 
   const rafraichir = useCallback(
     async (silencieux = false) => {
@@ -156,7 +202,7 @@ export function EcranTablette() {
     if (code.length < 4 || envoi || bloque) return;
     setEnvoi(true);
     try {
-      const r = await appelApi<{ prenom: string; sens: Sens; heure: string; fiche: Fiche | null }>("/api/tablette/pointer", { method: "POST", json: { code } });
+      const r = await appelApi<{ prenom: string; sens: Sens; heure: string; fiche: Fiche | null }>("/api/tablette/pointer", { method: "POST", json: { code, photo: etat?.photo ? (appareil.prendre() ?? undefined) : undefined } });
       // Un rappel à lire laisse l'écran affiché plus longtemps.
       afficher({ ...retourDe(r), fiche: r.fiche }, r.fiche && (r.fiche.rappels.length || r.fiche.nonLues) ? 12_000 : 7000);
       await rafraichir(true);
@@ -178,23 +224,6 @@ export function EcranTablette() {
     }
   }
 
-  async function demanderSms(salarieId: string) {
-    setChoixSms(false);
-    try {
-      const r = await appelApi<{ mobile: string }>("/api/tablette/sms", { method: "POST", json: { salarieId } });
-      afficher({ ton: "neutre", titre: "SMS envoyé", detail: `Au ${r.mobile}. Tapez sur le clavier le code à 6 chiffres reçu.` }, 6000);
-    } catch (err) {
-      const c = err instanceof ErreurApi ? err.code : "";
-      const detail =
-        c === "PATIENTEZ"
-          ? "Un code vient de vous être envoyé : attendez une minute avant d'en demander un autre."
-          : c === "TROP_DE_SMS"
-            ? "Trop de SMS demandés. Utilisez votre code personnel ou le QR code."
-            : "Le SMS n'a pas pu partir. Utilisez votre code personnel ou le QR code.";
-      afficher({ ton: "erreur", titre: "SMS non envoyé", detail });
-    }
-  }
-
   if (!etat) {
     return (
       <main className="flex min-h-screen items-center justify-center p-8 text-center" style={fond}>
@@ -204,8 +233,7 @@ export function EcranTablette() {
   }
 
   const touche = "flex h-[72px] select-none items-center justify-center rounded-2xl text-[28px] font-bold active:scale-95 disabled:opacity-40";
-  const clavier = etat.modeCode || !!etat.sms;
-  const aucunMode = !clavier && !etat.qr;
+  const aucunMode = !etat.modeCode && !etat.qr;
 
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden p-6 sm:p-10" style={{ ...fond, userSelect: "none" }}>
@@ -253,9 +281,9 @@ export function EcranTablette() {
           {aucunMode && <p className="text-lg">Aucun mode de pointage n'est ouvert pour cette tablette. L'administrateur peut en activer un dans Kipointe, page Tablettes.</p>}
         </section>
 
-        {clavier && (
+        {etat.modeCode && (
           <section className="mx-auto w-full max-w-[360px]">
-            <div className="text-center text-xl font-extrabold">{etat.modeCode ? "Avec votre code" : "Avec le code reçu par SMS"}</div>
+            <div className="text-center text-xl font-extrabold">Avec votre code</div>
             <div
               className="mono mt-4 flex h-[68px] items-center justify-center rounded-2xl text-[34px] font-bold"
               style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", letterSpacing: "0.4em" }}
@@ -280,33 +308,19 @@ export function EcranTablette() {
                 {envoi ? "…" : "Valider"}
               </button>
             </div>
-            {etat.sms && etat.sms.length > 0 && (
-              <button type="button" className="mt-4 h-[56px] w-full rounded-2xl text-[17px] font-bold" style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.35)", color: "#fff" }} disabled={horsLigne || bloque} onClick={() => setChoixSms(true)}>
-                Recevoir un code par SMS
-              </button>
+            {etat.photo && (
+              <div className="mt-4 flex items-center gap-3 rounded-2xl p-3" style={{ background: "rgba(255,255,255,0.08)" }}>
+                <video ref={appareil.video} muted playsInline className="h-[54px] w-[72px] shrink-0 rounded-lg object-cover" style={{ background: "#000", transform: "scaleX(-1)" }} />
+                <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.8)", lineHeight: 1.45 }}>
+                  {appareil.pret
+                    ? "Une photo est prise quand vous validez votre code. Elle n'est vue que par votre employeur, en cas de doute, et détruite au bout de 30 jours."
+                    : "Appareil photo indisponible : le pointage est enregistré sans photo."}
+                </p>
+              </div>
             )}
           </section>
         )}
       </div>
-
-      {choixSms && etat.sms && (
-        <div className="absolute inset-0 flex flex-col items-center gap-5 overflow-y-auto p-8" style={{ background: "var(--navy-darker)" }} role="dialog" aria-label="Choisir son nom">
-          <div className="text-3xl font-extrabold">Qui êtes-vous ?</div>
-          <p className="text-lg" style={{ color: "rgba(255,255,255,0.72)" }}>
-            Touchez votre nom : un code vous est envoyé par SMS.
-          </p>
-          <div className="grid w-full max-w-[900px] grid-cols-2 gap-3 landscape:grid-cols-3">
-            {etat.sms.map((d) => (
-              <button key={d.id} type="button" className="h-[68px] rounded-2xl text-xl font-bold active:scale-95" style={{ background: "rgba(255,255,255,0.12)" }} onClick={() => void demanderSms(d.id)}>
-                {d.nom}
-              </button>
-            ))}
-          </div>
-          <button type="button" className="h-[56px] rounded-full px-9 text-lg font-bold" style={{ background: "#fff", color: "var(--ink)" }} onClick={() => setChoixSms(false)}>
-            Annuler
-          </button>
-        </div>
-      )}
 
       {retour && (
         <div
