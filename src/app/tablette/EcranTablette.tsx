@@ -17,6 +17,10 @@ interface Etat {
 type Retour = { ton: "ok" | "neutre" | "erreur"; titre: string; detail: string };
 
 const PERIODE_MS = 10_000;
+
+/** Présent quand la page tourne dans l'application Android Kipointe (android/). */
+type Natif = { bip?: (ok: boolean) => void; demanderSortie?: () => void };
+const natif = (): Natif | undefined => (typeof window === "undefined" ? undefined : (window as unknown as { KipointeNative?: Natif }).KipointeNative);
 const fond = { background: "linear-gradient(160deg, var(--navy-deep), var(--navy-darker))", color: "#fff" } as const;
 
 function retourDe(p: { prenom: string; sens: Sens; heure: string }): Retour {
@@ -79,9 +83,15 @@ export function EcranTablette() {
   const [, forcer] = useState(0);
   const dernierVu = useRef<string | null | undefined>(undefined);
   const minuterie = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sortie = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const afficher = useCallback((r: Retour, duree = 4500) => {
     setRetour(r);
+    try {
+      natif()?.bip?.(r.ton !== "erreur");
+    } catch {
+      // Sans l'application, pas de son : l'écran suffit.
+    }
     if (minuterie.current) clearTimeout(minuterie.current);
     minuterie.current = setTimeout(() => setRetour(null), duree);
   }, []);
@@ -165,7 +175,17 @@ export function EcranTablette() {
     <main className="relative flex min-h-screen flex-col overflow-hidden p-6 sm:p-10" style={{ ...fond, userSelect: "none" }}>
       <header className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Logomark size={34} />
+          {/* Appui long sur le logo : l'application Android demande le code de sortie. */}
+          <span
+            onPointerDown={() => {
+              sortie.current = setTimeout(() => natif()?.demanderSortie?.(), 3000);
+            }}
+            onPointerUp={() => sortie.current && clearTimeout(sortie.current)}
+            onPointerLeave={() => sortie.current && clearTimeout(sortie.current)}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <Logomark size={34} />
+          </span>
           <div>
             <div className="text-lg font-extrabold">{etat.entreprise}</div>
             <div className="mono text-[12px] uppercase" style={{ color: "rgba(255,255,255,0.6)", letterSpacing: "0.08em" }}>

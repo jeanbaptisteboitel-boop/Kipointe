@@ -1,8 +1,8 @@
 # Tablette de pointage
 
 Une tablette Android posée à l'entrée affiche en permanence l'écran de pointage de Kipointe
-(`/tablette`). C'est une page web : rien à installer de la part de Kipointe, et la mise à jour est
-immédiate. La liaison avec une pointeuse NGTeco / ZKTeco reste disponible en parallèle
+(`/tablette`), dans l'application Android Kipointe. Le pointage lui-même est une page web : ses
+évolutions ne demandent pas de réinstaller l'application. La liaison avec une pointeuse NGTeco / ZKTeco reste disponible en parallèle
 ([POINTEUSE.md](POINTEUSE.md)).
 
 ## Deux façons de pointer
@@ -19,13 +19,15 @@ pointages à moins de deux minutes d'écart : le second est ignoré.
 
 ## Mise en service
 
-1. Page **Tablettes** → *Ajouter une tablette* : un code d'activation s'affiche (24 h, usage unique).
-2. Sur la tablette : ouvrir `https://<adresse du service>/tablette`, saisir le code.
-3. Verrouiller la tablette sur cette page avec une application de borne (« kiosk »), par exemple
-   Fully Kiosk Browser : masquage du reste d'Android, écran toujours allumé, réouverture de la page
-   au démarrage. La page demande elle-même à l'écran de rester allumé, mais Android peut le refuser
-   (batterie faible) : l'application de borne est la garantie.
+1. Installer l'**application Android Kipointe** sur la tablette ([android/README.md](../android/README.md)) :
+   elle affiche la page en plein écran, garde l'écran allumé, se relance au démarrage et verrouille
+   la tablette (sortie par code).
+2. Page **Tablettes** → *Ajouter une tablette* : un code d'activation s'affiche (24 h, usage unique).
+3. Au premier lancement : adresse du service, code de sortie, puis code d'activation.
 4. Tablette branchée sur secteur, fixée.
+
+Sans l'application, la page `https://<adresse du service>/tablette` fonctionne aussi dans un
+navigateur, mais rien ne verrouille alors la tablette.
 
 ## Garde-fous
 

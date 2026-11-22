@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kipointe</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+         background: #051442; color: #fff; font-family: system-ui, sans-serif; text-align: center; padding: 32px; box-sizing: border-box; }
+  h1 { font-size: 34px; margin: 0; }
+  p { font-size: 19px; margin: 0; color: rgba(255,255,255,.75); max-width: 30em; line-height: 1.5; }
+  button { margin-top: 12px; font-size: 18px; font-weight: 700; padding: 14px 28px; border-radius: 999px; border: 0; background: #1fa9f0; color: #04122e; }
+</style>
+</head>
+<body>
+  <h1>Pointage momentanément indisponible</h1>
+  <p>La tablette ne parvient pas à joindre Kipointe. Vérifiez le Wi-Fi. Un nouvel essai est fait toutes les quinze secondes.</p>
+  <button onclick="KipointeNative.recharger()">Réessayer maintenant</button>
+  <button style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.3)" onclick="KipointeNative.demanderSortie()">Réglages</button>
+</body>
+</html>

@@ -129,16 +129,19 @@ export default async function PageTablettes() {
 
         <Section titre="Installer une tablette" aide="À faire une fois par tablette.">
           <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm" style={{ lineHeight: 1.6 }}>
+            <li>
+              Installez l'<strong>application Kipointe</strong> sur la tablette (fichier APK fourni par votre revendeur). Elle garde l'écran allumé, masque le reste d'Android et se relance au démarrage.
+            </li>
             <li>Ajoutez la tablette ci-dessus : un code d'activation s'affiche.</li>
             <li>
-              Sur la tablette, reliée au Wi-Fi, ouvrez <span className="mono font-bold">{adresse}</span> et saisissez ce code.
+              Au premier lancement de l'application, saisissez l'adresse <span className="mono font-bold">{adresse.replace(/\/tablette$/, "")}</span>, choisissez un code de sortie, puis entrez le code d'activation.
             </li>
-            <li>
-              Verrouillez la tablette sur cette page avec une application de borne (« kiosk ») telle que Fully Kiosk Browser : elle masque le reste d'Android, garde l'écran allumé et rouvre la page après une coupure de courant.
-            </li>
-            <li>Laissez la tablette branchée sur secteur, fixée au mur ou sur un support.</li>
+            <li>Acceptez l'épinglage de l'application quand Android le propose, et laissez la tablette branchée sur secteur, fixée au mur ou sur un support.</li>
             <li>Faites un pointage d'essai : il apparaît aussitôt sur la fiche du salarié.</li>
           </ol>
+          <p className="mt-3 text-[13px]" style={{ color: "var(--muted)" }}>
+            Pour sortir de l'écran de pointage : appui long sur le logo, en haut à gauche, puis code de sortie. Sans l'application, la page <span className="mono">{adresse}</span> s'ouvre aussi dans un navigateur.
+          </p>
           <div className="encart-info mt-4 text-[13px]">
             <strong>Sens du pointage.</strong> Le premier pointage de la journée est une arrivée, le suivant un départ, et ainsi de suite (pause déjeuner comprise). Deux pointages à moins de deux minutes d'écart : le second
             est ignoré. Un oubli se corrige depuis la fiche du salarié.
